@@ -2,6 +2,7 @@ import base64
 import logging
 import os
 import secrets
+import sys
 from typing import cast
 
 import jsons
@@ -32,16 +33,18 @@ def run_tests(host, port, service_address):
         info.havoc_count,
     )
 
-    pytest.main(
-        [
-            f"--checker-address={host}",
-            f"--checker-port={port}",
-            f"--service-address={service_address}",
-            f"--flag-count={info.flag_count}",
-            f"--noise-count={info.noise_count}",
-            f"--havoc-count={info.havoc_count}",
-            os.path.realpath(__file__),
-        ]
+    sys.exit(
+        pytest.main(
+            [
+                f"--checker-address={host}",
+                f"--checker-port={port}",
+                f"--service-address={service_address}",
+                f"--flag-count={info.flag_count}",
+                f"--noise-count={info.noise_count}",
+                f"--havoc-count={info.havoc_count}",
+                os.path.realpath(__file__),
+            ]
+        )
     )
 
 
