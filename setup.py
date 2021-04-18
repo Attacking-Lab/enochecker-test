@@ -16,8 +16,10 @@ setuptools.setup(
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/enowars/enochecker_test",
-    packages=setuptools.find_packages("enochecker_test"),
-    package_dir={"": "enochecker_test"},
+    packages=setuptools.find_packages(),
+    entry_points = {
+        "console_scripts": ['enochecker_test = enochecker_test:main']
+    },
     install_requires=requirements,
     classifiers=[
         # How mature is this project? Common values are
