@@ -1,7 +1,7 @@
 import base64
 import logging
 import os
-import random
+import secrets
 from typing import cast
 
 import jsons
@@ -87,7 +87,7 @@ def pytest_generate_tests(metafunc):
 
 
 def generate_dummyflag() -> str:
-    flag = "ENO" + base64.b64encode(random.randbytes(36)).decode()
+    flag = "ENO" + base64.b64encode(secrets.token_bytes(36)).decode()
     assert len(flag) == 51
     return flag
 
