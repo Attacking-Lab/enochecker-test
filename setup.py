@@ -9,7 +9,7 @@ with open("requirements.txt", "r") as f:
 
 setuptools.setup(
     name="enochecker_test",
-    version="0.2.0",
+    version="0.3.0",
     author="ldruschk",
     author_email="ldruschk@posteo.de",
     description="Library to help testing checker scripts based on enochecker",
