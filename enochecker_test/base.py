@@ -321,16 +321,56 @@ def test_putflag_multiplied(
     )
 
 
+def test_putflag_invalid_variant(round_id, flag_variants, service_address, checker_url):
+    flag = generate_dummyflag()
+    _test_putflag(
+        flag,
+        round_id,
+        flag_variants,
+        service_address,
+        checker_url,
+        expected_result=CheckerTaskResult.CHECKER_TASK_RESULT_INTERNAL_ERROR,
+    )
+
+
 def test_getflag(round_id, flag_id, service_address, checker_url):
     flag = generate_dummyflag()
     _test_putflag(flag, round_id, flag_id, service_address, checker_url)
     _test_getflag(flag, round_id, flag_id, service_address, checker_url)
 
 
-def test_getflag_multiplied(round_id, flag_id_multiplied, service_address, checker_url):
+def test_getflag_multiplied(
+    round_id, flag_id_multiplied, flag_variants, service_address, checker_url
+):
     flag = generate_dummyflag()
-    _test_putflag(flag, round_id, flag_id_multiplied, service_address, checker_url)
-    _test_getflag(flag, round_id, flag_id_multiplied, service_address, checker_url)
+    _test_putflag(
+        flag,
+        round_id,
+        flag_id_multiplied % flag_variants,
+        service_address,
+        checker_url,
+        unique_variant_index=flag_id_multiplied,
+    )
+    _test_getflag(
+        flag,
+        round_id,
+        flag_id_multiplied % flag_variants,
+        service_address,
+        checker_url,
+        unique_variant_index=flag_id_multiplied,
+    )
+
+
+def test_getflag_invalid_variant(round_id, flag_variants, service_address, checker_url):
+    flag = generate_dummyflag()
+    _test_getflag(
+        flag,
+        round_id,
+        flag_variants,
+        service_address,
+        checker_url,
+        expected_result=CheckerTaskResult.CHECKER_TASK_RESULT_INTERNAL_ERROR,
+    )
 
 
 def test_putnoise(round_id, noise_id, service_address, checker_url):
@@ -338,9 +378,27 @@ def test_putnoise(round_id, noise_id, service_address, checker_url):
 
 
 def test_putnoise_multiplied(
-    round_id, noise_id_multiplied, service_address, checker_url
+    round_id, noise_id_multiplied, noise_variants, service_address, checker_url
 ):
-    _test_putnoise(round_id, noise_id_multiplied, service_address, checker_url)
+    _test_putnoise(
+        round_id,
+        noise_id_multiplied % noise_variants,
+        service_address,
+        checker_url,
+        unique_variant_index=noise_id_multiplied,
+    )
+
+
+def test_putnoise_invalid_variant(
+    round_id, noise_variants, service_address, checker_url
+):
+    _test_putnoise(
+        round_id,
+        noise_variants,
+        service_address,
+        checker_url,
+        expected_result=CheckerTaskResult.CHECKER_TASK_RESULT_INTERNAL_ERROR,
+    )
 
 
 def test_getnoise(round_id, noise_id, service_address, checker_url):
@@ -349,10 +407,34 @@ def test_getnoise(round_id, noise_id, service_address, checker_url):
 
 
 def test_getnoise_multiplied(
-    round_id, noise_id_multiplied, service_address, checker_url
+    round_id, noise_id_multiplied, noise_variants, service_address, checker_url
 ):
-    _test_putnoise(round_id, noise_id_multiplied, service_address, checker_url)
-    _test_getnoise(round_id, noise_id_multiplied, service_address, checker_url)
+    _test_putnoise(
+        round_id,
+        noise_id_multiplied % noise_variants,
+        service_address,
+        checker_url,
+        unique_variant_index=noise_id_multiplied,
+    )
+    _test_getnoise(
+        round_id,
+        noise_id_multiplied % noise_variants,
+        service_address,
+        checker_url,
+        unique_variant_index=noise_id_multiplied,
+    )
+
+
+def test_getnoise_invalid_variant(
+    round_id, noise_variants, service_address, checker_url
+):
+    _test_getnoise(
+        round_id,
+        noise_variants,
+        service_address,
+        checker_url,
+        expected_result=CheckerTaskResult.CHECKER_TASK_RESULT_INTERNAL_ERROR,
+    )
 
 
 def test_puthavoc(round_id, havoc_id, service_address, checker_url):
@@ -360,9 +442,25 @@ def test_puthavoc(round_id, havoc_id, service_address, checker_url):
 
 
 def test_puthavoc_multiplied(
-    round_id, havoc_id_multiplied, service_address, checker_url
+    round_id, havoc_id_multiplied, havoc_variants, service_address, checker_url
 ):
-    _test_havoc(round_id, havoc_id_multiplied, service_address, checker_url)
+    _test_havoc(
+        round_id,
+        havoc_id_multiplied % havoc_variants,
+        service_address,
+        checker_url,
+        unique_variant_index=havoc_id_multiplied,
+    )
+
+
+def test_havoc_invalid_variant(round_id, havoc_variants, service_address, checker_url):
+    _test_havoc(
+        round_id,
+        havoc_variants,
+        service_address,
+        checker_url,
+        expected_result=CheckerTaskResult.CHECKER_TASK_RESULT_INTERNAL_ERROR,
+    )
 
 
 def main():
