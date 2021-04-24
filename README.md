@@ -1,2 +1,2 @@
-# enochecker_test
+# enochecker_test [![PyPI version](https://badge.fury.io/py/enochecker-test.svg)](https://pypi.org/project/enochecker-test) [![Build Status](https://github.com/enowars/enochecker_test/actions/workflows/pythonapp.yml/badge.svg?branch=main)](https://github.com/enowars/enochecker_test/actions/workflows/pythonapp.yml) ![Lines of code](https://tokei.rs/b1/github/enowars/enochecker_test)
 Automatically test services/checker using the enochecker API
