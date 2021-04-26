@@ -9,7 +9,7 @@ with open("requirements.txt", "r") as f:
 
 setuptools.setup(
     name="enochecker_test",
-    version="0.3.0",
+    version="0.4.0",
     author="ldruschk",
     author_email="ldruschk@posteo.de",
     description="Library to help testing checker scripts based on enochecker",
@@ -32,7 +32,6 @@ setuptools.setup(
         "License :: OSI Approved :: MIT License",
         # Specify the Python versions you support here. In particular, ensure
         # that you indicate whether you support Python 2, Python 3 or both.
-        "Programming Language :: Python :: 3.6",
         "Programming Language :: Python :: 3.7",
         "Programming Language :: Python :: 3.8",
         "Programming Language :: Python :: 3.9",
