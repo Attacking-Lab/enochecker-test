@@ -18,7 +18,7 @@ setuptools.setup(
     url="https://github.com/enowars/enochecker_test",
     packages=setuptools.find_packages(),
     entry_points = {
-        "console_scripts": ['enochecker_test = enochecker_test:main']
+        "console_scripts": ['enochecker_test = enochecker_test.main:main']
     },
     install_requires=requirements,
     classifiers=[

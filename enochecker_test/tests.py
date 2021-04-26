@@ -1,15 +1,11 @@
 import base64
-import logging
-import os
 import secrets
-import sys
-from typing import Optional, cast
+from typing import Optional
 
 import jsons
 import pytest
 import requests
 from enochecker_core import (
-    CheckerInfoMessage,
     CheckerMethod,
     CheckerResultMessage,
     CheckerTaskMessage,
@@ -17,37 +13,6 @@ from enochecker_core import (
 )
 
 global_round_id = 0
-
-
-def run_tests(host, port, service_address):
-    r = requests.get(f"http://{host}:{port}/service")
-    if r.status_code != 200:
-        raise Exception("Failed to get /service from checker")
-    print(r.content)
-    info: CheckerInfoMessage = jsons.loads(
-        r.content, CheckerInfoMessage, key_transformer=jsons.KEY_TRANSFORMER_SNAKECASE
-    )
-    logging.info(
-        "Testing service %s, flagVariants: %d, noiseVariants: %d, havocVariants: %d",
-        info.service_name,
-        info.flag_variants,
-        info.noise_variants,
-        info.havoc_variants,
-    )
-
-    sys.exit(
-        pytest.main(
-            [
-                f"--checker-address={host}",
-                f"--checker-port={port}",
-                f"--service-address={service_address}",
-                f"--flag-variants={info.flag_variants}",
-                f"--noise-variants={info.noise_variants}",
-                f"--havoc-variants={info.havoc_variants}",
-                os.path.realpath(__file__),
-            ]
-        )
-    )
 
 
 @pytest.fixture
@@ -437,11 +402,11 @@ def test_getnoise_invalid_variant(
     )
 
 
-def test_puthavoc(round_id, havoc_id, service_address, checker_url):
+def test_havoc(round_id, havoc_id, service_address, checker_url):
     _test_havoc(round_id, havoc_id, service_address, checker_url)
 
 
-def test_puthavoc_multiplied(
+def test_havoc_multiplied(
     round_id, havoc_id_multiplied, havoc_variants, service_address, checker_url
 ):
     _test_havoc(
@@ -461,28 +426,3 @@ def test_havoc_invalid_variant(round_id, havoc_variants, service_address, checke
         checker_url,
         expected_result=CheckerTaskResult.CHECKER_TASK_RESULT_INTERNAL_ERROR,
     )
-
-
-def main():
-    if not os.getenv("ENOCHECKER_TEST_CHECKER_ADDRESS"):
-        raise Exception(
-            "Missing enochecker address, please set the ENOCHECKER_TEST_CHECKER_ADDRESS environment variable"
-        )
-    if not os.getenv("ENOCHECKER_TEST_CHECKER_PORT"):
-        raise Exception(
-            "Missing enochecker port, please set the ENOCHECKER_TEST_CHECKER_PORT environment variable"
-        )
-    if not os.getenv("ENOCHECKER_TEST_SERVICE_ADDRESS"):
-        raise Exception(
-            "Missing service address, please set the ENOCHECKER_TEST_SERVICE_ADDRESS environment variable"
-        )
-    host = os.getenv("ENOCHECKER_TEST_CHECKER_ADDRESS")
-    _service_address = os.getenv("ENOCHECKER_TEST_SERVICE_ADDRESS")
-    try:
-        port_str = os.getenv("ENOCHECKER_TEST_CHECKER_PORT")
-        port = int(cast(str, port_str))
-    except ValueError:
-        raise Exception("Invalid number in ENOCHECKER_TEST_PORT")
-
-    logging.basicConfig(level=logging.INFO)
-    run_tests(host, port, _service_address)
