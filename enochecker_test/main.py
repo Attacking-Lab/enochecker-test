@@ -6,9 +6,9 @@ from typing import cast
 import jsons
 import pytest
 import requests
+from enochecker_core import CheckerInfoMessage
 from requests.adapters import HTTPAdapter
 from requests.packages.urllib3.util.retry import Retry
-from enochecker_core import CheckerInfoMessage
 
 
 def run_tests(host, port, service_address):
