@@ -43,6 +43,7 @@ def run_tests(host, port, service_address):
                 f"--noise-variants={info.noise_variants}",
                 f"--havoc-variants={info.havoc_variants}",
                 "--durations=0",
+                "-v",
                 os.path.join(os.path.dirname(__file__), "tests.py"),
             ]
         )
