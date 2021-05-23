@@ -5,3 +5,4 @@ def pytest_addoption(parser):
     parser.addoption("--flag-variants", action="store", type=int)
     parser.addoption("--noise-variants", action="store", type=int)
     parser.addoption("--havoc-variants", action="store", type=int)
+    parser.addoption("--exploit-variants", action="store", type=int)

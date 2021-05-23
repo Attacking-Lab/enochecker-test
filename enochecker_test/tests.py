@@ -1,4 +1,5 @@
 import base64
+import hashlib
 import secrets
 from typing import Optional
 
@@ -13,6 +14,8 @@ from enochecker_core import (
 )
 
 global_round_id = 0
+FLAG_REGEX = r"ENO[A-Za-z0-9+\/=]{48}"
+REQUEST_TIMEOUT = 10
 
 
 @pytest.fixture
@@ -39,6 +42,7 @@ def pytest_generate_tests(metafunc):
     flag_variants: int = metafunc.config.getoption("--flag-variants")
     noise_variants: int = metafunc.config.getoption("--noise-variants")
     havoc_variants: int = metafunc.config.getoption("--havoc-variants")
+    exploit_variants: int = metafunc.config.getoption("--exploit-variants")
 
     if "flag_id" in metafunc.fixturenames:
         metafunc.parametrize("flag_id", range(flag_variants))
@@ -67,6 +71,11 @@ def pytest_generate_tests(metafunc):
     if "havoc_variants" in metafunc.fixturenames:
         metafunc.parametrize("havoc_variants", [havoc_variants])
 
+    if "exploit_id" in metafunc.fixturenames:
+        metafunc.parametrize("exploit_id", range(exploit_variants))
+    if "exploit_variants" in metafunc.fixturenames:
+        metafunc.parametrize("exploit_variants", [exploit_variants])
+
 
 def generate_dummyflag() -> str:
     flag = "ENO" + base64.b64encode(secrets.token_bytes(36)).decode()
@@ -88,6 +97,9 @@ def _create_request_message(
     service_address: str,
     flag: Optional[str] = None,
     unique_variant_index: Optional[int] = None,
+    flag_regex: Optional[str] = None,
+    flag_hash: Optional[str] = None,
+    attack_info: Optional[str] = None,
 ) -> CheckerTaskMessage:
     if unique_variant_index is None:
         unique_variant_index = variant_id
@@ -97,6 +109,8 @@ def _create_request_message(
         prefix = "flag"
     elif method in ("putnoise", "getnoise"):
         prefix = "noise"
+    elif method == "exploit":
+        prefix = "exploit"
     task_chain_id = f"{prefix}_s0_r{round_id}_t0_i{unique_variant_index}"
 
     return CheckerTaskMessage(
@@ -112,6 +126,9 @@ def _create_request_message(
         timeout=30000,
         round_length=60000,
         task_chain_id=task_chain_id,
+        flag_regex=flag_regex,
+        flag_hash=flag_hash,
+        attack_info=attack_info,
     )
 
 
@@ -131,8 +148,8 @@ def _test_putflag(
     service_address,
     checker_url,
     unique_variant_index=None,
-    expected_result=CheckerTaskResult.CHECKER_TASK_RESULT_OK,
-):
+    expected_result=CheckerTaskResult.OK,
+) -> Optional[str]:
     if unique_variant_index is None:
         unique_variant_index = flag_id
     request_message = _create_request_message(
@@ -145,12 +162,16 @@ def _test_putflag(
     )
     msg = _jsonify_request_message(request_message)
     r = requests.post(
-        f"{checker_url}", data=msg, headers={"content-type": "application/json"}
+        f"{checker_url}",
+        data=msg,
+        headers={"content-type": "application/json"},
+        timeout=REQUEST_TIMEOUT,
     )
     result_message: CheckerResultMessage = jsons.loads(
         r.content, CheckerResultMessage, key_transformer=jsons.KEY_TRANSFORMER_SNAKECASE
     )
     assert CheckerTaskResult(result_message.result) == expected_result
+    return result_message.flag
 
 
 def _test_getflag(
@@ -160,7 +181,7 @@ def _test_getflag(
     service_address,
     checker_url,
     unique_variant_index=None,
-    expected_result=CheckerTaskResult.CHECKER_TASK_RESULT_OK,
+    expected_result=CheckerTaskResult.OK,
 ):
     if unique_variant_index is None:
         unique_variant_index = flag_id
@@ -174,7 +195,10 @@ def _test_getflag(
     )
     msg = _jsonify_request_message(request_message)
     r = requests.post(
-        f"{checker_url}", data=msg, headers={"content-type": "application/json"}
+        f"{checker_url}",
+        data=msg,
+        headers={"content-type": "application/json"},
+        timeout=REQUEST_TIMEOUT,
     )
     assert r.status_code == 200
     result_message: CheckerResultMessage = jsons.loads(
@@ -189,7 +213,7 @@ def _test_putnoise(
     service_address,
     checker_url,
     unique_variant_index=None,
-    expected_result=CheckerTaskResult.CHECKER_TASK_RESULT_OK,
+    expected_result=CheckerTaskResult.OK,
 ):
     if unique_variant_index is None:
         unique_variant_index = noise_id
@@ -202,7 +226,10 @@ def _test_putnoise(
     )
     msg = _jsonify_request_message(request_message)
     r = requests.post(
-        f"{checker_url}", data=msg, headers={"content-type": "application/json"}
+        f"{checker_url}",
+        data=msg,
+        headers={"content-type": "application/json"},
+        timeout=REQUEST_TIMEOUT,
     )
     assert r.status_code == 200
     result_message: CheckerResultMessage = jsons.loads(
@@ -217,7 +244,7 @@ def _test_getnoise(
     service_address,
     checker_url,
     unique_variant_index=None,
-    expected_result=CheckerTaskResult.CHECKER_TASK_RESULT_OK,
+    expected_result=CheckerTaskResult.OK,
 ):
     if unique_variant_index is None:
         unique_variant_index = noise_id
@@ -230,7 +257,10 @@ def _test_getnoise(
     )
     msg = _jsonify_request_message(request_message)
     r = requests.post(
-        f"{checker_url}", data=msg, headers={"content-type": "application/json"}
+        f"{checker_url}",
+        data=msg,
+        headers={"content-type": "application/json"},
+        timeout=REQUEST_TIMEOUT,
     )
     assert r.status_code == 200
     result_message: CheckerResultMessage = jsons.loads(
@@ -245,7 +275,7 @@ def _test_havoc(
     service_address,
     checker_url,
     unique_variant_index=None,
-    expected_result=CheckerTaskResult.CHECKER_TASK_RESULT_OK,
+    expected_result=CheckerTaskResult.OK,
 ):
     if unique_variant_index is None:
         unique_variant_index = havoc_id
@@ -258,13 +288,54 @@ def _test_havoc(
     )
     msg = _jsonify_request_message(request_message)
     r = requests.post(
-        f"{checker_url}", data=msg, headers={"content-type": "application/json"}
+        f"{checker_url}",
+        data=msg,
+        headers={"content-type": "application/json"},
+        timeout=REQUEST_TIMEOUT,
     )
     assert r.status_code == 200
     result_message: CheckerResultMessage = jsons.loads(
         r.content, CheckerResultMessage, key_transformer=jsons.KEY_TRANSFORMER_SNAKECASE
     )
     assert CheckerTaskResult(result_message.result) == expected_result
+
+
+def _test_exploit(
+    flag_regex,
+    flag_hash,
+    attack_info,
+    round_id,
+    exploit_id,
+    service_address,
+    checker_url,
+    unique_variant_index=None,
+    expected_result=CheckerTaskResult.OK,
+) -> Optional[str]:
+    if unique_variant_index is None:
+        unique_variant_index = exploit_id
+    request_message = _create_request_message(
+        "exploit",
+        round_id,
+        exploit_id,
+        service_address,
+        unique_variant_index=unique_variant_index,
+        flag_regex=flag_regex,
+        flag_hash=flag_hash,
+        attack_info=attack_info,
+    )
+    msg = _jsonify_request_message(request_message)
+    r = requests.post(
+        f"{checker_url}",
+        data=msg,
+        headers={"content-type": "application/json"},
+        timeout=REQUEST_TIMEOUT,
+    )
+    assert r.status_code == 200
+    result_message: CheckerResultMessage = jsons.loads(
+        r.content, CheckerResultMessage, key_transformer=jsons.KEY_TRANSFORMER_SNAKECASE
+    )
+    assert CheckerTaskResult(result_message.result) == expected_result
+    return result_message.flag
 
 
 def test_putflag(round_id, flag_id, service_address, checker_url):
@@ -294,7 +365,7 @@ def test_putflag_invalid_variant(round_id, flag_variants, service_address, check
         flag_variants,
         service_address,
         checker_url,
-        expected_result=CheckerTaskResult.CHECKER_TASK_RESULT_INTERNAL_ERROR,
+        expected_result=CheckerTaskResult.INTERNAL_ERROR,
     )
 
 
@@ -334,7 +405,7 @@ def test_getflag_invalid_variant(round_id, flag_variants, service_address, check
         flag_variants,
         service_address,
         checker_url,
-        expected_result=CheckerTaskResult.CHECKER_TASK_RESULT_INTERNAL_ERROR,
+        expected_result=CheckerTaskResult.INTERNAL_ERROR,
     )
 
 
@@ -362,7 +433,7 @@ def test_putnoise_invalid_variant(
         noise_variants,
         service_address,
         checker_url,
-        expected_result=CheckerTaskResult.CHECKER_TASK_RESULT_INTERNAL_ERROR,
+        expected_result=CheckerTaskResult.INTERNAL_ERROR,
     )
 
 
@@ -398,7 +469,7 @@ def test_getnoise_invalid_variant(
         noise_variants,
         service_address,
         checker_url,
-        expected_result=CheckerTaskResult.CHECKER_TASK_RESULT_INTERNAL_ERROR,
+        expected_result=CheckerTaskResult.INTERNAL_ERROR,
     )
 
 
@@ -424,5 +495,69 @@ def test_havoc_invalid_variant(round_id, havoc_variants, service_address, checke
         havoc_variants,
         service_address,
         checker_url,
-        expected_result=CheckerTaskResult.CHECKER_TASK_RESULT_INTERNAL_ERROR,
+        expected_result=CheckerTaskResult.INTERNAL_ERROR,
+    )
+
+
+def _do_exploit_run(round_id, exploit_id, flag_id, service_address, checker_url):
+    try:
+        flag = generate_dummyflag()
+        flag_hash = hashlib.sha256(flag.encode()).hexdigest()
+
+        attack_info = _test_putflag(
+            flag, round_id, flag_id, service_address, checker_url
+        )
+        found_flag = _test_exploit(
+            FLAG_REGEX,
+            flag_hash,
+            attack_info,
+            round_id,
+            exploit_id,
+            service_address,
+            checker_url,
+        )
+        print(found_flag)
+        return found_flag == flag
+    except:
+        pass
+    return False
+
+
+def test_exploit_per_exploit_id(
+    round_id, exploit_id, flag_variants, service_address, checker_url
+):
+    assert any(
+        [
+            _do_exploit_run(round_id, exploit_id, flag_id, service_address, checker_url)
+            for flag_id in range(flag_variants)
+        ]
+    )
+
+
+def test_exploit_per_flag_id(
+    round_id, exploit_variants, flag_id, service_address, checker_url
+):
+    assert any(
+        [
+            _do_exploit_run(round_id, exploit_id, flag_id, service_address, checker_url)
+            for exploit_id in range(exploit_variants)
+        ]
+    )
+
+
+def test_exploit_invalid_variant(
+    round_id, exploit_variants, service_address, checker_url
+):
+    flag = generate_dummyflag()
+    flag_hash = hashlib.sha256(flag.encode()).hexdigest()
+
+    _test_exploit(
+        FLAG_REGEX,
+        flag_hash,
+        None,
+        round_id,
+        exploit_variants,
+        service_address,
+        checker_url,
+        expected_result=CheckerTaskResult.INTERNAL_ERROR,
     )

@@ -26,11 +26,12 @@ def run_tests(host, port, service_address):
         r.content, CheckerInfoMessage, key_transformer=jsons.KEY_TRANSFORMER_SNAKECASE
     )
     logging.info(
-        "Testing service %s, flagVariants: %d, noiseVariants: %d, havocVariants: %d",
+        "Testing service %s, flagVariants: %d, noiseVariants: %d, havocVariants: %d, exploitVariants: %d",
         info.service_name,
         info.flag_variants,
         info.noise_variants,
         info.havoc_variants,
+        info.exploit_variants,
     )
 
     sys.exit(
@@ -42,6 +43,7 @@ def run_tests(host, port, service_address):
                 f"--flag-variants={info.flag_variants}",
                 f"--noise-variants={info.noise_variants}",
                 f"--havoc-variants={info.havoc_variants}",
+                f"--exploit-variants={info.exploit_variants}",
                 "--durations=0",
                 "-v",
                 os.path.join(os.path.dirname(__file__), "tests.py"),
