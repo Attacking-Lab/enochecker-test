@@ -171,7 +171,7 @@ def _test_putflag(
         r.content, CheckerResultMessage, key_transformer=jsons.KEY_TRANSFORMER_SNAKECASE
     )
     assert CheckerTaskResult(result_message.result) == expected_result
-    return result_message.flag
+    return result_message.attack_info
 
 
 def _test_getflag(
