@@ -16,6 +16,7 @@ from enochecker_core import (
 global_round_id = 0
 FLAG_REGEX = r"ENO[A-Za-z0-9+\/=]{48}"
 REQUEST_TIMEOUT = 10
+CHAIN_ID_PREFIX = secrets.token_hex(20)
 
 
 @pytest.fixture
@@ -111,7 +112,9 @@ def _create_request_message(
         prefix = "noise"
     elif method == "exploit":
         prefix = "exploit"
-    task_chain_id = f"{prefix}_s0_r{round_id}_t0_i{unique_variant_index}"
+    task_chain_id = (
+        f"{CHAIN_ID_PREFIX}_{prefix}_s0_r{round_id}_t0_i{unique_variant_index}"
+    )
 
     return CheckerTaskMessage(
         task_id=round_id,
@@ -375,6 +378,32 @@ def test_getflag(round_id, flag_id, service_address, checker_url):
     _test_getflag(flag, round_id, flag_id, service_address, checker_url)
 
 
+def test_getflag_wrong_flag(round_id, flag_id, service_address, checker_url):
+    flag = generate_dummyflag()
+    _test_putflag(flag, round_id, flag_id, service_address, checker_url)
+    wrong_flag = generate_dummyflag()
+    _test_getflag(
+        wrong_flag,
+        round_id,
+        flag_id,
+        service_address,
+        checker_url,
+        expected_result=CheckerTaskResult.MUMBLE,
+    )
+
+
+def test_getflag_without_putflag(round_id, flag_id, service_address, checker_url):
+    flag = generate_dummyflag()
+    _test_getflag(
+        flag,
+        round_id,
+        flag_id,
+        service_address,
+        checker_url,
+        expected_result=CheckerTaskResult.MUMBLE,
+    )
+
+
 def test_getflag_multiplied(
     round_id, flag_id_multiplied, flag_variants, service_address, checker_url
 ):
@@ -440,6 +469,16 @@ def test_putnoise_invalid_variant(
 def test_getnoise(round_id, noise_id, service_address, checker_url):
     _test_putnoise(round_id, noise_id, service_address, checker_url)
     _test_getnoise(round_id, noise_id, service_address, checker_url)
+
+
+def test_getnoise_without_putnoise(round_id, noise_id, service_address, checker_url):
+    _test_getnoise(
+        round_id,
+        noise_id,
+        service_address,
+        checker_url,
+        expected_result=CheckerTaskResult.MUMBLE,
+    )
 
 
 def test_getnoise_multiplied(
