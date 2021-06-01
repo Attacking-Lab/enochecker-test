@@ -126,7 +126,7 @@ def _create_request_message(
         related_round_id=round_id,
         flag=flag,
         variant_id=variant_id,
-        timeout=30000,
+        timeout=REQUEST_TIMEOUT * 1000,
         round_length=60000,
         task_chain_id=task_chain_id,
         flag_regex=flag_regex,
