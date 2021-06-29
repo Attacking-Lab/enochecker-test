@@ -556,32 +556,33 @@ def _do_exploit_run(round_id, exploit_id, flag_id, service_address, checker_url)
             checker_url,
         )
         print(found_flag)
-        return found_flag == flag
-    except:
-        pass
-    return False
+        return found_flag == flag, None
+    except Exception as e:
+        return False, e
 
 
 def test_exploit_per_exploit_id(
     round_id, exploit_id, flag_variants, service_address, checker_url
 ):
-    assert any(
-        [
-            _do_exploit_run(round_id, exploit_id, flag_id, service_address, checker_url)
-            for flag_id in range(flag_variants)
-        ]
-    )
+    results = [
+        _do_exploit_run(round_id, exploit_id, flag_id, service_address, checker_url)
+        for flag_id in range(flag_variants)
+    ]
+    if any(r[0] for r in results):
+        return
+    raise Exception([r[1] for r in results])
 
 
 def test_exploit_per_flag_id(
     round_id, exploit_variants, flag_id, service_address, checker_url
 ):
-    assert any(
-        [
-            _do_exploit_run(round_id, exploit_id, flag_id, service_address, checker_url)
-            for exploit_id in range(exploit_variants)
-        ]
-    )
+    results = [
+        _do_exploit_run(round_id, exploit_id, flag_id, service_address, checker_url)
+        for exploit_id in range(exploit_variants)
+    ]
+    if any(r[0] for r in results):
+        return
+    raise Exception([r[1] for r in results])
 
 
 def test_exploit_invalid_variant(
