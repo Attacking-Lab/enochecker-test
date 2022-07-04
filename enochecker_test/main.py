@@ -11,7 +11,7 @@ from requests.adapters import HTTPAdapter
 from requests.packages.urllib3.util.retry import Retry
 
 
-def run_tests(host, port, service_address):
+def run_tests(host, port, service_address, test_methods):
     s = requests.Session()
     retry_strategy = Retry(
         total=5,
@@ -34,22 +34,27 @@ def run_tests(host, port, service_address):
         info.exploit_variants,
     )
 
-    sys.exit(
-        pytest.main(
-            [
-                f"--checker-address={host}",
-                f"--checker-port={port}",
-                f"--service-address={service_address}",
-                f"--flag-variants={info.flag_variants}",
-                f"--noise-variants={info.noise_variants}",
-                f"--havoc-variants={info.havoc_variants}",
-                f"--exploit-variants={info.exploit_variants}",
-                "--durations=0",
-                "-v",
-                os.path.join(os.path.dirname(__file__), "tests.py"),
-            ]
-        )
-    )
+    test_args = [
+        f"--checker-address={host}",
+        f"--checker-port={port}",
+        f"--service-address={service_address}",
+        f"--flag-variants={info.flag_variants}",
+        f"--noise-variants={info.noise_variants}",
+        f"--havoc-variants={info.havoc_variants}",
+        f"--exploit-variants={info.exploit_variants}",
+        "--durations=0",
+        "-v",
+    ]
+
+    if test_methods is None or len(test_methods) == 0:
+        test_args.append(os.path.join(os.path.dirname(__file__), "tests.py"))
+    else:
+        for method in test_methods:
+            test_args.append(
+                os.path.join(os.path.dirname(__file__), "tests.py") + "::" + method
+            )
+
+    sys.exit(pytest.main(test_args))
 
 
 def main():
@@ -74,4 +79,4 @@ def main():
         raise Exception("Invalid number in ENOCHECKER_TEST_PORT")
 
     logging.basicConfig(level=logging.INFO)
-    run_tests(host, port, _service_address)
+    run_tests(host, port, _service_address, sys.argv[2:])
