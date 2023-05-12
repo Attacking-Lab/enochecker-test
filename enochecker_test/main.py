@@ -79,4 +79,4 @@ def main():
         raise Exception("Invalid number in ENOCHECKER_TEST_PORT")
 
     logging.basicConfig(level=logging.INFO)
-    run_tests(host, port, _service_address, sys.argv[2:])
+    run_tests(host, port, _service_address, sys.argv[1:])
