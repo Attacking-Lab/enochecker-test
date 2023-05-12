@@ -8,7 +8,7 @@ import pytest
 import requests
 from enochecker_core import CheckerInfoMessage
 from requests.adapters import HTTPAdapter
-from requests.packages.urllib3.util.retry import Retry
+from urllib3.util.retry import Retry
 
 
 def run_tests(host, port, service_address, test_methods):
