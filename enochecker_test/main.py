@@ -1,7 +1,7 @@
+import argparse
 import logging
 import os
 import sys
-from typing import cast
 
 import jsons
 import pytest
@@ -58,25 +58,56 @@ def run_tests(host, port, service_address, test_methods):
 
 
 def main():
-    if not os.getenv("ENOCHECKER_TEST_CHECKER_ADDRESS"):
+    parser = argparse.ArgumentParser(
+        prog="enochecker_test",
+        description="Utility for testing checkers that implement the enochecker API",
+    )
+    parser.add_argument(
+        "-a",
+        "--checker-address",
+        help="The address on which the checker is listening (defaults to the ENOCHECKER_TEST_CHECKER_ADDRESS environment variable)",
+        default=os.environ.get("ENOCHECKER_TEST_CHECKER_ADDRESS"),
+    )
+    parser.add_argument(
+        "-p",
+        "--checker-port",
+        help="The port on which the checker is listening (defaults to ENOCHECKER_TEST_CHECKER_PORT environment variable)",
+        choices=range(1, 65536),
+        metavar="{1..65535}",
+        type=int,
+        default=os.environ.get("ENOCHECKER_TEST_CHECKER_PORT"),
+    )
+    parser.add_argument(
+        "-A",
+        "--service-address",
+        help="The address on which the service is listening (defaults to ENOCHECKER_TEST_SERVICE_ADDRESS environment variable)",
+        default=os.environ.get("ENOCHECKER_TEST_SERVICE_ADDRESS"),
+    )
+    parser.add_argument(
+        "testcase",
+        help="Specify the tests that should be run in the syntax expected by pytest, e.g. test_getflag. If no test is specified, all tests will be run.",
+        nargs="*",
+    )
+
+    args = parser.parse_args()
+
+    if not args.checker_address:
+        parser.print_usage()
         raise Exception(
             "Missing enochecker address, please set the ENOCHECKER_TEST_CHECKER_ADDRESS environment variable"
         )
-    if not os.getenv("ENOCHECKER_TEST_CHECKER_PORT"):
+    if not args.checker_port:
+        parser.print_usage()
         raise Exception(
             "Missing enochecker port, please set the ENOCHECKER_TEST_CHECKER_PORT environment variable"
         )
-    if not os.getenv("ENOCHECKER_TEST_SERVICE_ADDRESS"):
+    if not args.service_address:
+        parser.print_usage()
         raise Exception(
             "Missing service address, please set the ENOCHECKER_TEST_SERVICE_ADDRESS environment variable"
         )
-    host = os.getenv("ENOCHECKER_TEST_CHECKER_ADDRESS")
-    _service_address = os.getenv("ENOCHECKER_TEST_SERVICE_ADDRESS")
-    try:
-        port_str = os.getenv("ENOCHECKER_TEST_CHECKER_PORT")
-        port = int(cast(str, port_str))
-    except ValueError:
-        raise Exception("Invalid number in ENOCHECKER_TEST_PORT")
 
     logging.basicConfig(level=logging.INFO)
-    run_tests(host, port, _service_address, sys.argv[1:])
+    run_tests(
+        args.checker_address, args.checker_port, args.service_address, args.testcase
+    )
