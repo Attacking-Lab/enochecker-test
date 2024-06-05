@@ -11,7 +11,7 @@ from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 
 
-def run_tests(host, port, service_address, test_methods):
+def run_tests(host, port, service_address, test_expr):
     s = requests.Session()
     retry_strategy = Retry(
         total=5,
@@ -46,13 +46,10 @@ def run_tests(host, port, service_address, test_methods):
         "-v",
     ]
 
-    if test_methods is None or len(test_methods) == 0:
-        test_args.append(os.path.join(os.path.dirname(__file__), "tests.py"))
-    else:
-        for method in test_methods:
-            test_args.append(
-                os.path.join(os.path.dirname(__file__), "tests.py") + "::" + method
-            )
+    if test_expr:
+        test_args.append("-k")
+        test_args.append(test_expr)
+    test_args.append(os.path.join(os.path.dirname(__file__), "tests.py"))
 
     sys.exit(pytest.main(test_args))
 
@@ -95,9 +92,9 @@ service's docker container as obtained by e.g:
         default=os.environ.get("ENOCHECKER_TEST_SERVICE_ADDRESS"),
     )
     parser.add_argument(
-        "testcase",
-        help="Specify the tests that should be run in the syntax expected by pytest, e.g. test_getflag. If no test is specified, all tests will be run.",
-        nargs="*",
+        "testexpr",
+        help="Specify the tests that should be run in the syntax expected by pytests -k flag, e.g. 'test_getflag' or 'not exploit'. If no expr is specified, all tests will be run.",
+        nargs="?",
     )
 
     args = parser.parse_args()
@@ -120,5 +117,5 @@ service's docker container as obtained by e.g:
 
     logging.basicConfig(level=logging.INFO)
     run_tests(
-        args.checker_address, args.checker_port, args.service_address, args.testcase
+        args.checker_address, args.checker_port, args.service_address, args.testexpr
     )
