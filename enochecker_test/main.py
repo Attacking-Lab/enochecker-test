@@ -60,7 +60,18 @@ def run_tests(host, port, service_address, test_methods):
 def main():
     parser = argparse.ArgumentParser(
         prog="enochecker_test",
+        # don't reformat but use description and epilog verbatim
+        formatter_class=argparse.RawDescriptionHelpFormatter,
         description="Utility for testing checkers that implement the enochecker API",
+        epilog="""Example Usage:
+
+    $ enochecker_test -a localhost -p 5008 -A 172.20.0.1 test_putflag
+
+Assuming that 172.20.0.1 is the ip address of the gateway of the network of the
+service's docker container as obtained by e.g:
+
+    $ docker network inspect service_default | jq ".[].IPAM.Config[].Gateway"
+""",
     )
     parser.add_argument(
         "-a",
@@ -80,7 +91,7 @@ def main():
     parser.add_argument(
         "-A",
         "--service-address",
-        help="The address on which the service is listening (defaults to ENOCHECKER_TEST_SERVICE_ADDRESS environment variable)",
+        help="The address on which the checker can reach the service (defaults to ENOCHECKER_TEST_SERVICE_ADDRESS environment variable)",
         default=os.environ.get("ENOCHECKER_TEST_SERVICE_ADDRESS"),
     )
     parser.add_argument(
