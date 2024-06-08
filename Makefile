@@ -1,13 +1,12 @@
 lint:
-	python -m isort -c enochecker_test/
-	python -m black --check --diff enochecker_test/
-	python -m flake8 --select F --per-file-ignores="__init__.py:F401" enochecker_test/
-	python -m mypy enochecker_test/
+	poetry run isort -c enochecker_test/
+	poetry run black --check --diff enochecker_test/
+	poetry run flake8 --select F --per-file-ignores="__init__.py:F401" enochecker_test/
+	poetry run mypy enochecker_test/
 
 format:
-	python -m isort enochecker_test/
-	python -m black enochecker_test/
+	poetry run isort enochecker_test/
+	poetry run black enochecker_test/
 
 test:
-	pip install .
-	python -m pytest
+	poetry run pytest
