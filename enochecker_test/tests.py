@@ -1,3 +1,4 @@
+import asyncio
 import base64
 import hashlib
 import json
@@ -83,6 +84,9 @@ def pytest_generate_tests(metafunc):
     if "encoding" in metafunc.fixturenames:
         metafunc.parametrize("encoding", ["ascii", "utf8"])
 
+    if "multiplier" in metafunc.fixturenames:
+        metafunc.parametrize("multiplier", [32, 128, 512])
+
 
 def generate_dummyflag(encoding: str) -> str:
     if encoding == "utf8":
@@ -159,6 +163,37 @@ def _jsonify_request_message(request_message: CheckerTaskMessage):
     )
 
 
+async def _execute_request(
+    request_message: CheckerTaskMessage,
+    checker_url: str,
+    expected_result: CheckerTaskResult,
+    client: Optional[httpx.AsyncClient],
+) -> CheckerResultMessage:
+    msg = _jsonify_request_message(request_message)
+    if client is not None:
+        r = await client.post(
+            f"{checker_url}",
+            data=msg,
+            headers={"content-type": "application/json"},
+            timeout=REQUEST_TIMEOUT,
+        )
+    else:
+        async with httpx.AsyncClient() as client:
+            r = await client.post(
+                f"{checker_url}",
+                data=msg,
+                headers={"content-type": "application/json"},
+                timeout=REQUEST_TIMEOUT,
+            )
+    result_message: CheckerResultMessage = jsons.loads(
+        r.content, CheckerResultMessage, key_transformer=jsons.KEY_TRANSFORMER_SNAKECASE
+    )
+    assert (
+        CheckerTaskResult(result_message.result) == expected_result
+    ), f"\nMessage: {result_message.message}\n"
+    return result_message
+
+
 async def _test_putflag(
     flag,
     round_id,
@@ -167,6 +202,7 @@ async def _test_putflag(
     checker_url,
     unique_variant_index=None,
     expected_result=CheckerTaskResult.OK,
+    client=None,
 ) -> Optional[str]:
     if unique_variant_index is None:
         unique_variant_index = flag_id
@@ -178,20 +214,9 @@ async def _test_putflag(
         flag,
         unique_variant_index=unique_variant_index,
     )
-    msg = _jsonify_request_message(request_message)
-    async with httpx.AsyncClient() as client:
-        r = await client.post(
-            f"{checker_url}",
-            data=msg,
-            headers={"content-type": "application/json"},
-            timeout=REQUEST_TIMEOUT,
-        )
-    result_message: CheckerResultMessage = jsons.loads(
-        r.content, CheckerResultMessage, key_transformer=jsons.KEY_TRANSFORMER_SNAKECASE
+    result_message: CheckerResultMessage = await _execute_request(
+        request_message, checker_url, expected_result, client
     )
-    assert (
-        CheckerTaskResult(result_message.result) == expected_result
-    ), f"\nMessage: {result_message.message}\n"
     return result_message.attack_info
 
 
@@ -203,6 +228,7 @@ async def _test_getflag(
     checker_url,
     unique_variant_index=None,
     expected_result=CheckerTaskResult.OK,
+    client=None,
 ):
     if unique_variant_index is None:
         unique_variant_index = flag_id
@@ -214,21 +240,7 @@ async def _test_getflag(
         flag,
         unique_variant_index=unique_variant_index,
     )
-    msg = _jsonify_request_message(request_message)
-    async with httpx.AsyncClient() as client:
-        r = await client.post(
-            f"{checker_url}",
-            data=msg,
-            headers={"content-type": "application/json"},
-            timeout=REQUEST_TIMEOUT,
-        )
-    assert r.status_code == 200
-    result_message: CheckerResultMessage = jsons.loads(
-        r.content, CheckerResultMessage, key_transformer=jsons.KEY_TRANSFORMER_SNAKECASE
-    )
-    assert (
-        CheckerTaskResult(result_message.result) == expected_result
-    ), f"\nMessage: {result_message.message}\n"
+    await _execute_request(request_message, checker_url, expected_result, client)
 
 
 async def _test_putnoise(
@@ -238,6 +250,7 @@ async def _test_putnoise(
     checker_url,
     unique_variant_index=None,
     expected_result=CheckerTaskResult.OK,
+    client=None,
 ):
     if unique_variant_index is None:
         unique_variant_index = noise_id
@@ -248,21 +261,7 @@ async def _test_putnoise(
         service_address,
         unique_variant_index=unique_variant_index,
     )
-    msg = _jsonify_request_message(request_message)
-    async with httpx.AsyncClient() as client:
-        r = await client.post(
-            f"{checker_url}",
-            data=msg,
-            headers={"content-type": "application/json"},
-            timeout=REQUEST_TIMEOUT,
-        )
-    assert r.status_code == 200
-    result_message: CheckerResultMessage = jsons.loads(
-        r.content, CheckerResultMessage, key_transformer=jsons.KEY_TRANSFORMER_SNAKECASE
-    )
-    assert (
-        CheckerTaskResult(result_message.result) == expected_result
-    ), f"\nMessage: {result_message.message}\n"
+    await _execute_request(request_message, checker_url, expected_result, client)
 
 
 async def _test_getnoise(
@@ -272,6 +271,7 @@ async def _test_getnoise(
     checker_url,
     unique_variant_index=None,
     expected_result=CheckerTaskResult.OK,
+    client=None,
 ):
     if unique_variant_index is None:
         unique_variant_index = noise_id
@@ -282,21 +282,7 @@ async def _test_getnoise(
         service_address,
         unique_variant_index=unique_variant_index,
     )
-    msg = _jsonify_request_message(request_message)
-    async with httpx.AsyncClient() as client:
-        r = await client.post(
-            f"{checker_url}",
-            data=msg,
-            headers={"content-type": "application/json"},
-            timeout=REQUEST_TIMEOUT,
-        )
-    assert r.status_code == 200
-    result_message: CheckerResultMessage = jsons.loads(
-        r.content, CheckerResultMessage, key_transformer=jsons.KEY_TRANSFORMER_SNAKECASE
-    )
-    assert (
-        CheckerTaskResult(result_message.result) == expected_result
-    ), f"\nMessage: {result_message.message}\n"
+    await _execute_request(request_message, checker_url, expected_result, client)
 
 
 async def _test_havoc(
@@ -306,6 +292,7 @@ async def _test_havoc(
     checker_url,
     unique_variant_index=None,
     expected_result=CheckerTaskResult.OK,
+    client=None,
 ):
     if unique_variant_index is None:
         unique_variant_index = havoc_id
@@ -316,21 +303,7 @@ async def _test_havoc(
         service_address,
         unique_variant_index=unique_variant_index,
     )
-    msg = _jsonify_request_message(request_message)
-    async with httpx.AsyncClient() as client:
-        r = await client.post(
-            f"{checker_url}",
-            data=msg,
-            headers={"content-type": "application/json"},
-            timeout=REQUEST_TIMEOUT,
-        )
-    assert r.status_code == 200
-    result_message: CheckerResultMessage = jsons.loads(
-        r.content, CheckerResultMessage, key_transformer=jsons.KEY_TRANSFORMER_SNAKECASE
-    )
-    assert (
-        CheckerTaskResult(result_message.result) == expected_result
-    ), f"\nMessage: {result_message.message}\n"
+    await _execute_request(request_message, checker_url, expected_result, client)
 
 
 async def _test_exploit(
@@ -343,6 +316,7 @@ async def _test_exploit(
     checker_url,
     unique_variant_index=None,
     expected_result=CheckerTaskResult.OK,
+    client=None,
 ) -> Optional[str]:
     if unique_variant_index is None:
         unique_variant_index = exploit_id
@@ -356,21 +330,9 @@ async def _test_exploit(
         flag_hash=flag_hash,
         attack_info=attack_info,
     )
-    msg = _jsonify_request_message(request_message)
-    async with httpx.AsyncClient() as client:
-        r = await client.post(
-            f"{checker_url}",
-            data=msg,
-            headers={"content-type": "application/json"},
-            timeout=REQUEST_TIMEOUT,
-        )
-    assert r.status_code == 200
-    result_message: CheckerResultMessage = jsons.loads(
-        r.content, CheckerResultMessage, key_transformer=jsons.KEY_TRANSFORMER_SNAKECASE
+    result_message: CheckerResultMessage = await _execute_request(
+        request_message, checker_url, expected_result, client
     )
-    assert (
-        CheckerTaskResult(result_message.result) == expected_result
-    ), f"\nMessage: {result_message.message}\n"
     return result_message.flag
 
 
@@ -712,3 +674,62 @@ async def test_checker_info_message_case(
     assert r.json() == json.loads(
         jsons.dumps(result_message, key_transformer=jsons.KEY_TRANSFORMER_CAMELCASE)
     )
+
+
+async def test_stress(
+    encoding,
+    round_id,
+    flag_variants,
+    noise_variants,
+    havoc_variants,
+    service_address,
+    checker_url,
+    multiplier,
+):
+    transport = httpx.AsyncHTTPTransport(
+        limits=httpx.Limits(max_connections=1000, max_keepalive_connections=200)
+    )
+    async with httpx.AsyncClient(transport=transport) as client:
+
+        async def flag_fn(i, flag_id):
+            flag = generate_dummyflag(encoding)
+            await _test_putflag(
+                flag,
+                round_id,
+                flag_id,
+                service_address,
+                checker_url,
+                unique_variant_index=i * flag_variants + flag_id,
+                client=client,
+            )
+
+        async def noise_fn(i, noise_id):
+            await _test_putnoise(
+                round_id,
+                noise_id,
+                service_address,
+                checker_url,
+                unique_variant_index=i * noise_variants + noise_id,
+                client=client,
+            )
+
+        async def havoc_fn(i, havoc_id):
+            await _test_havoc(
+                round_id,
+                havoc_id,
+                service_address,
+                checker_url,
+                unique_variant_index=i * havoc_variants + havoc_id,
+                client=client,
+            )
+
+        awaitables = []
+        for i in range(multiplier):
+            for flag_id in range(flag_variants):
+                awaitables.append(flag_fn(i, flag_id))
+            for noise_id in range(noise_variants):
+                awaitables.append(noise_fn(i, noise_id))
+            for havoc_id in range(havoc_variants):
+                awaitables.append(havoc_fn(i, havoc_id))
+
+        await asyncio.gather(*awaitables)
