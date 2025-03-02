@@ -3,22 +3,16 @@ import logging
 import os
 import sys
 
+import httpx
 import jsons
 import pytest
-import requests
 from enochecker_core import CheckerInfoMessage
-from requests.adapters import HTTPAdapter
-from urllib3.util.retry import Retry
 
 
 def run_tests(host, port, service_address, test_expr):
-    s = requests.Session()
-    retry_strategy = Retry(
-        total=5,
-        backoff_factor=1,
-    )
-    s.mount("http://", HTTPAdapter(max_retries=retry_strategy))
-    r = s.get(f"http://{host}:{port}/service")
+    transport = httpx.HTTPTransport(retries=10)
+    with httpx.Client(transport=transport) as client:
+        r = client.get(f"http://{host}:{port}/service")
     if r.status_code != 200:
         raise Exception("Failed to get /service from checker")
     print(r.content)

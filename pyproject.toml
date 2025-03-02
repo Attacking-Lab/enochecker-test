@@ -30,7 +30,8 @@ python = ">=3.8.1,<=4.0"
 enochecker-core = "^0.10.0"
 jsons = "^1.6.3"
 pytest = "^8.2.1"
-requests = "^2.32.3"
+pytest-asyncio = "^0.25.3"
+httpx = "^0.28.1"
 
 [tool.poetry.group.test.dependencies]
 black = "^24.4.2"
@@ -80,3 +81,6 @@ include_trailing_comma = true
 line_length = 88
 force_grid_wrap = 0
 use_parentheses = true
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
