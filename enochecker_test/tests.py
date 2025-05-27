@@ -634,7 +634,11 @@ def _do_exploit_run(
             checker_url,
         )
         print(found_flag)
-        return found_flag == flag, None
+        if found_flag == flag:
+            return True, None
+
+        return False, Exception(f"Found flag is incorrect. Expected: {flag}. Found: {found_flag}")
+
     except Exception as e:
         return False, e
 

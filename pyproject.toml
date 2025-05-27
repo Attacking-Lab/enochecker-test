@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "enochecker_test"
-version = "0.10.0"
+version = "0.10.1"
 description = "Library to help testing checker scripts based on enochecker"
 authors = ["ldruschk <ldrushk@posteo.de>"]
 license = "MIT"
