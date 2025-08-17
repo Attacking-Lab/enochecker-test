@@ -7,9 +7,6 @@ on:
   pull_request:
     branches:
       - main
-  schedule:
-    - cron: "0 0 * * *"
-  workflow_dispatch:
 
 jobs:
   build:
@@ -38,6 +35,10 @@ jobs:
     - name: Check linting
       run: |
         make --trace lint
+
+    - name: Check typing
+      run: |
+        make --trace mypy
 
     - name: Run tests
       run: |
