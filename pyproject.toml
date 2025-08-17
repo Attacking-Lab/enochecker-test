@@ -1,52 +1,43 @@
-[tool.poetry]
+[project]
 name = "enochecker_test"
-version = "0.10.1"
+version = "0.10.2"
+requires-python = ">=3.9"
 description = "Library to help testing checker scripts based on enochecker"
-authors = ["ldruschk <ldrushk@posteo.de>"]
+authors = [
+	{ name = "Louis Burda", email = "dev@sinitax.com" },
+	{ name = "Lucas Drushke", email = "ldrushk@posteo.de" }
+]
 license = "MIT"
 readme = "README.md"
-homepage = "https://github.com/enowars/enochecker_test"
-repository = "https://github.com/enowars/enochecker_test"
+dependencies = [
+	"enochecker-core==0.10.*",
+	"jsons~=1.6.3",
+	"requests~=2.32.2",
+]
 classifiers = [
-    # How mature is this project? Common values are
-    #   3 - Alpha
-    #   4 - Beta
-    #   5 - Production/Stable
-    "Development Status :: 3 - Alpha",
-    # Indicate who your project is intended for
-    # 'Intended Audience :: Developers',
-    "License :: OSI Approved :: MIT License",
-    # Specify the Python versions you support here. In particular, ensure
-    # that you indicate whether you support Python 2, Python 3 or both.
-    "Programming Language :: Python :: 3.9",
-    "Programming Language :: Python :: 3.10",
-    "Programming Language :: Python :: 3.11",
-    "Programming Language :: Python :: 3.12",
-    "Programming Language :: Python :: 3.13",
+	"Development Status :: 4 - Beta",
+	"Programming Language :: Python :: 3.9",
+	"Programming Language :: Python :: 3.10",
+	"Programming Language :: Python :: 3.11",
+	"Programming Language :: Python :: 3.12",
+	"Programming Language :: Python :: 3.13",
 ]
 
-[tool.poetry.dependencies]
-python = ">=3.8.1,<=4.0"
-enochecker-core = "^0.10.0"
-jsons = "^1.6.3"
-pytest = "^8.2.1"
-requests = "^2.32.3"
+[project.urls]
+homepage = "https://github.com/enowars/enochecker_test"
+repository = "https://github.com/enowars/enochecker_test"
 
-[tool.poetry.group.test.dependencies]
-black = "^24.4.2"
-flake8 = "^7.0.0"
-isort = "^5.13.2"
-mypy = "^1.10.0"
-
-types-requests = "^2.30"
-
-[tool.poetry.scripts]
+[project.scripts]
 enochecker_test = "enochecker_test.main:main"
 
 [build-system]
-requires = ["poetry-core>=1.5.0"]
-build-backend = "poetry.core.masonry.api"
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
 
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["enochecker_test"]
+exclude = []
 
 [tool.mypy]
 check_untyped_defs = true
@@ -80,3 +71,22 @@ include_trailing_comma = true
 line_length = 88
 force_grid_wrap = 0
 use_parentheses = true
+
+[dependency-groups]
+dev = [
+	"types-requests~=2.30",
+]
+format = [
+	"ruff>=0.12.9",
+]
+lint = [
+	"ruff>=0.12.9",
+]
+test = [
+	"coverage>=7.10.4",
+	"enochecker3>=0.10.0",
+	"pytest>=8.2.2",
+]
+typing = [
+	"mypy>=1.17.1",
+]

@@ -1,12 +1,31 @@
-lint:
-	poetry run isort -c enochecker_test/
-	poetry run black --check --diff enochecker_test/
-	poetry run flake8 --select F --per-file-ignores="__init__.py:F401" enochecker_test/
-	poetry run mypy enochecker_test/
+UV_FLAGS ?= --inexact
+UV_RUN ?= VIRTUAL_ENV=.venv uv run $(UV_FLAGS)
+
+all: format lint mypy test
+
+fix: format-fix lint-fix
 
 format:
-	poetry run isort enochecker_test/
-	poetry run black enochecker_test/
+	@$(UV_RUN) --group format ruff format --check
+
+format-fix:
+	@$(UV_RUN) --group format ruff format
+
+lint:
+	@$(UV_RUN) --group lint ruff check
+
+lint-fix:
+	@$(UV_RUN) --group lint ruff check --fix
+
+mypy:
+	@$(UV_RUN) --group typing mypy enochecker_test/
+
+build:
+	@uv build
 
 test:
-	poetry run pytest
+	@test -z $(ls tests) || \
+		($(UV_RUN) --group test coverage run -m pytest -W error -v && \
+		$(UV_RUN) --group test coverage report -m)
+
+.PHONY: all fix format format-fix lint lint-fix mypy test build
