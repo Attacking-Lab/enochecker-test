@@ -25,7 +25,7 @@ jobs:
 
     - name: Setup UV
       run: |
-        echo "UV_RUN=uv run --exact --locked" >> $GITHUB_ENV
+        echo "UV_RUN=uv run --exact --frozen" >> $GITHUB_ENV
         python -m pip install uv
 
     - name: Check formatting
