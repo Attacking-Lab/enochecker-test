@@ -74,7 +74,7 @@ service's docker container as obtained by e.g:
         "-a",
         "--checker-address",
         help="The address on which the checker is listening (defaults to the ENOCHECKER_TEST_CHECKER_ADDRESS environment variable)",
-        default=os.environ.get("ENOCHECKER_TEST_CHECKER_ADDRESS"),
+        default=os.environ.get("ENOCHECKER_TEST_CHECKER_ADDRESS", "localhost"),
     )
     parser.add_argument(
         "-p",
@@ -99,11 +99,6 @@ service's docker container as obtained by e.g:
 
     args = parser.parse_args()
 
-    if not args.checker_address:
-        parser.print_usage()
-        raise Exception(
-            "Missing enochecker address, please set the ENOCHECKER_TEST_CHECKER_ADDRESS environment variable"
-        )
     if not args.checker_port:
         parser.print_usage()
         raise Exception(
