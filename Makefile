@@ -24,8 +24,17 @@ build:
 	@uv build
 
 test:
-	@test -z "$(shell ls tests)" || \
+	@test -z "$(shell ls tests &>/dev/null)" || \
 		($(UV_RUN) --group test coverage run -m pytest -W error -v && \
 		$(UV_RUN) --group test coverage report -m)
 
-.PHONY: all fix format format-fix lint lint-fix mypy test build
+sync:
+	@uv sync $(UV_FLAGS)
+
+dev:
+	@git update-index --assume-unchanged lib/.enochecker-core/pyproject.toml
+	@rm -rf lib/.enochecker-core
+	@ln -s enochecker-core lib/.enochecker-core
+	@git submodule update --init --recursive lib/enochecker-core
+
+.PHONY: all fix format format-fix lint lint-fix mypy test build sync dev

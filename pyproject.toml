@@ -1,6 +1,6 @@
 [project]
 name = "enochecker_test"
-version = "0.10.2"
+version = "0.11.0"
 requires-python = ">=3.9"
 description = "Library to help testing checker scripts based on enochecker"
 authors = [
@@ -10,7 +10,6 @@ authors = [
 license = "MIT"
 readme = "README.md"
 dependencies = [
-	"enochecker-core==0.10.*",
 	"jsons~=1.6.3",
 	"requests~=2.32.2",
 ]
@@ -23,21 +22,48 @@ classifiers = [
 	"Programming Language :: Python :: 3.13",
 ]
 
-[project.urls]
-homepage = "https://github.com/enowars/enochecker_test"
-repository = "https://github.com/enowars/enochecker_test"
+[dependency-groups]
+prod = [
+	"enochecker-core~=0.11.1",
+]
+dev = [
+	"types-requests~=2.30",
+]
+format = [
+	"ruff>=0.12.9",
+]
+lint = [
+	"ruff>=0.12.9",
+]
+test = [
+	"coverage>=7.10.4",
+	"enochecker3>=0.10.0",
+	"pytest>=8.2.2",
+]
+typing = [
+	"mypy>=1.17.1",
+]
 
-[project.scripts]
-enochecker_test = "enochecker_test.main:main"
+[project.optional-dependencies]
+dev = [
+	"enochecker-core",
+]
 
 [build-system]
 requires = ["setuptools"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
-where = ["."]
-include = ["enochecker_test"]
+where = ["src"]
+include = ["*"]
 exclude = []
+
+[project.urls]
+homepage = "https://github.com/enowars/enochecker_test"
+repository = "https://github.com/enowars/enochecker_test"
+
+[project.scripts]
+enochecker_test = "enochecker_test.main:main"
 
 [tool.mypy]
 check_untyped_defs = true
@@ -72,21 +98,18 @@ line_length = 88
 force_grid_wrap = 0
 use_parentheses = true
 
-[dependency-groups]
-dev = [
-	"types-requests~=2.30",
+[tool.uv]
+default-groups = ["prod"]
+conflicts = [
+	[
+		{ group = "prod" },
+		{ extra = "dev" }
+	],
 ]
-format = [
-	"ruff>=0.12.9",
-]
-lint = [
-	"ruff>=0.12.9",
-]
-test = [
-	"coverage>=7.10.4",
-	"enochecker3>=0.10.0",
-	"pytest>=8.2.2",
-]
-typing = [
-	"mypy>=1.17.1",
+
+[tool.uv.sources]
+enochecker3 = { git = "https://github.com/attacking-lab/enochecker3", rev = "v0.10.1" }
+enochecker-core = [
+	{ git = "https://github.com/attacking-lab/enochecker-core", rev = "v0.11.1", group = "prod" },
+	{ path = "lib/.enochecker-core", editable = true, extra = "dev" }
 ]
