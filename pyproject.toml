@@ -42,6 +42,7 @@ test = [
 ]
 typing = [
 	"mypy>=1.17.1",
+	"types-requests>=2.32.4.20250809",
 ]
 
 [project.optional-dependencies]

@@ -276,6 +276,7 @@ test = [
 ]
 typing = [
     { name = "mypy" },
+    { name = "types-requests" },
 ]
 
 [package.metadata]
@@ -296,7 +297,10 @@ test = [
     { name = "enochecker3", specifier = ">=0.10.0" },
     { name = "pytest", specifier = ">=8.2.2" },
 ]
-typing = [{ name = "mypy", specifier = ">=1.17.1" }]
+typing = [
+    { name = "mypy", specifier = ">=1.17.1" },
+    { name = "types-requests", specifier = ">=2.32.4.20250809" },
+]
 
 [[package]]
 name = "enochecker3"
