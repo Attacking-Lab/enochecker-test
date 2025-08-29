@@ -186,7 +186,7 @@ def _test_putflag(
         timeout=REQUEST_TIMEOUT,
     )
     result_message: CheckerResultMessage = jsons.loads(
-        r.content, CheckerResultMessage, key_transformer=jsons.KEY_TRANSFORMER_SNAKECASE
+        r.text, CheckerResultMessage, key_transformer=jsons.KEY_TRANSFORMER_SNAKECASE
     )
     assert CheckerTaskResult(result_message.result) == expected_result, (
         f"\nMessage: {result_message.message}\n"
@@ -222,7 +222,7 @@ def _test_getflag(
     )
     assert r.status_code == 200
     result_message: CheckerResultMessage = jsons.loads(
-        r.content, CheckerResultMessage, key_transformer=jsons.KEY_TRANSFORMER_SNAKECASE
+        r.text, CheckerResultMessage, key_transformer=jsons.KEY_TRANSFORMER_SNAKECASE
     )
     assert CheckerTaskResult(result_message.result) == expected_result, (
         f"\nMessage: {result_message.message}\n"
@@ -255,7 +255,7 @@ def _test_putnoise(
     )
     assert r.status_code == 200
     result_message: CheckerResultMessage = jsons.loads(
-        r.content, CheckerResultMessage, key_transformer=jsons.KEY_TRANSFORMER_SNAKECASE
+        r.text, CheckerResultMessage, key_transformer=jsons.KEY_TRANSFORMER_SNAKECASE
     )
     assert CheckerTaskResult(result_message.result) == expected_result, (
         f"\nMessage: {result_message.message}\n"
@@ -288,7 +288,7 @@ def _test_getnoise(
     )
     assert r.status_code == 200
     result_message: CheckerResultMessage = jsons.loads(
-        r.content, CheckerResultMessage, key_transformer=jsons.KEY_TRANSFORMER_SNAKECASE
+        r.text, CheckerResultMessage, key_transformer=jsons.KEY_TRANSFORMER_SNAKECASE
     )
     assert CheckerTaskResult(result_message.result) == expected_result, (
         f"\nMessage: {result_message.message}\n"
@@ -321,7 +321,7 @@ def _test_havoc(
     )
     assert r.status_code == 200
     result_message: CheckerResultMessage = jsons.loads(
-        r.content, CheckerResultMessage, key_transformer=jsons.KEY_TRANSFORMER_SNAKECASE
+        r.text, CheckerResultMessage, key_transformer=jsons.KEY_TRANSFORMER_SNAKECASE
     )
     assert CheckerTaskResult(result_message.result) == expected_result, (
         f"\nMessage: {result_message.message}\n"
@@ -360,7 +360,7 @@ def _test_exploit(
     )
     assert r.status_code == 200
     result_message: CheckerResultMessage = jsons.loads(
-        r.content, CheckerResultMessage, key_transformer=jsons.KEY_TRANSFORMER_SNAKECASE
+        r.text, CheckerResultMessage, key_transformer=jsons.KEY_TRANSFORMER_SNAKECASE
     )
     assert CheckerTaskResult(result_message.result) == expected_result, (
         f"\nMessage: {result_message.message}\n"
@@ -700,7 +700,7 @@ def test_checker_info_message_case(
     )
     assert r.status_code == 200
     result_message: CheckerInfoMessage = jsons.loads(
-        r.content, CheckerInfoMessage, key_transformer=jsons.KEY_TRANSFORMER_SNAKECASE
+        r.text, CheckerInfoMessage, key_transformer=jsons.KEY_TRANSFORMER_SNAKECASE
     )
     assert r.json() == json.loads(
         jsons.dumps(result_message, key_transformer=jsons.KEY_TRANSFORMER_CAMELCASE)
