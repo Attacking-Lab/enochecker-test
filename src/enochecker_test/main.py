@@ -3,7 +3,6 @@ import logging
 import os
 import sys
 
-import jsons
 import pytest
 import requests
 from enochecker_core import CheckerInfoMessage
@@ -11,7 +10,9 @@ from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 
 
-def run_tests(host, port, service_address, test_expr):
+def run_tests(
+    host: str, port: int, service_address: str, test_expr: str, multiplier: int
+):
     s = requests.Session()
     retry_strategy = Retry(
         total=5,
@@ -21,10 +22,7 @@ def run_tests(host, port, service_address, test_expr):
     r = s.get(f"http://{host}:{port}/service")
     if r.status_code != 200:
         raise Exception("Failed to get /service from checker")
-    print(r.content)
-    info: CheckerInfoMessage = jsons.loads(
-        r.content, CheckerInfoMessage, key_transformer=jsons.KEY_TRANSFORMER_SNAKECASE
-    )
+    info = CheckerInfoMessage.model_validate_json(r.text)
     logging.info(
         "Testing service %s, flagVariants: %d, noiseVariants: %d, havocVariants: %d, exploitVariants: %d",
         info.service_name,
@@ -42,6 +40,7 @@ def run_tests(host, port, service_address, test_expr):
         f"--noise-variants={info.noise_variants}",
         f"--havoc-variants={info.havoc_variants}",
         f"--exploit-variants={info.exploit_variants}",
+        f"--multiplier={multiplier}",
         "--durations=0",
         "-v",
     ]
@@ -104,6 +103,13 @@ service's docker container as obtained by e.g:
         default=os.environ.get("ENOCHECKER_SERVICE_NETWORK"),
     )
     parser.add_argument(
+        "-m",
+        "--multiplier",
+        help="Number of times to run for chains with _multiplied methods for",
+        type=int,
+        default=2
+    )
+    parser.add_argument(
         "testexpr",
         help="Specify the tests that should be run in the syntax expected by pytests -k flag, e.g. 'test_getflag' or 'not exploit'. If no expr is specified, all tests will be run.",
         nargs="?",
@@ -137,5 +143,9 @@ service's docker container as obtained by e.g:
 
     logging.basicConfig(level=logging.INFO)
     run_tests(
-        args.checker_address, args.checker_port, args.service_address, args.testexpr
+        args.checker_address,
+        args.checker_port,
+        args.service_address,
+        args.testexpr,
+        args.multiplier,
     )

@@ -1,6 +1,5 @@
 import base64
 import hashlib
-import json
 import secrets
 from typing import Optional
 
@@ -47,12 +46,13 @@ def pytest_generate_tests(metafunc):
     noise_variants: int = metafunc.config.getoption("--noise-variants")
     havoc_variants: int = metafunc.config.getoption("--havoc-variants")
     exploit_variants: int = metafunc.config.getoption("--exploit-variants")
+    multiplier: int = metafunc.config.getoption("--multiplier")
 
     if "flag_id" in metafunc.fixturenames:
         metafunc.parametrize("flag_id", range(flag_variants))
     if "flag_id_multiplied" in metafunc.fixturenames:
         metafunc.parametrize(
-            "flag_id_multiplied", range(flag_variants, flag_variants * 2)
+            "flag_id_multiplied", range(flag_variants, flag_variants * multiplier)
         )
     if "flag_variants" in metafunc.fixturenames:
         metafunc.parametrize("flag_variants", [flag_variants])
@@ -61,7 +61,7 @@ def pytest_generate_tests(metafunc):
         metafunc.parametrize("noise_id", range(noise_variants))
     if "noise_id_multiplied" in metafunc.fixturenames:
         metafunc.parametrize(
-            "noise_id_multiplied", range(noise_variants, noise_variants * 2)
+            "noise_id_multiplied", range(noise_variants, noise_variants * multiplier)
         )
     if "noise_variants" in metafunc.fixturenames:
         metafunc.parametrize("noise_variants", [noise_variants])
@@ -70,11 +70,16 @@ def pytest_generate_tests(metafunc):
         metafunc.parametrize("havoc_id", range(havoc_variants))
     if "havoc_id_multiplied" in metafunc.fixturenames:
         metafunc.parametrize(
-            "havoc_id_multiplied", range(havoc_variants, havoc_variants * 2)
+            "havoc_id_multiplied", range(havoc_variants, havoc_variants * multiplier)
         )
     if "havoc_variants" in metafunc.fixturenames:
         metafunc.parametrize("havoc_variants", [havoc_variants])
 
+    if "exploit_id_multiplied" in metafunc.fixturenames:
+        metafunc.parametrize(
+            "exploit_id_multiplied",
+            range(exploit_variants, exploit_variants * multiplier),
+        )
     if "exploit_id" in metafunc.fixturenames:
         metafunc.parametrize("exploit_id", range(exploit_variants))
     if "exploit_variants" in metafunc.fixturenames:
@@ -150,15 +155,6 @@ def _create_request_message(
     )
 
 
-def _jsonify_request_message(request_message: CheckerTaskMessage):
-    return jsons.dumps(
-        request_message,
-        use_enum_name=False,
-        key_transformer=jsons.KEY_TRANSFORMER_CAMELCASE,
-        strict=True,
-    )
-
-
 def _test_putflag(
     flag,
     round_id,
@@ -178,16 +174,13 @@ def _test_putflag(
         flag,
         unique_variant_index=unique_variant_index,
     )
-    msg = _jsonify_request_message(request_message)
     r = requests.post(
         f"{checker_url}",
-        data=msg,
+        data=request_message.model_dump_json(),
         headers={"content-type": "application/json"},
         timeout=REQUEST_TIMEOUT,
     )
-    result_message: CheckerResultMessage = jsons.loads(
-        r.text, CheckerResultMessage, key_transformer=jsons.KEY_TRANSFORMER_SNAKECASE
-    )
+    result_message = CheckerResultMessage.model_validate_json(r.text)
     assert CheckerTaskResult(result_message.result) == expected_result, (
         f"\nMessage: {result_message.message}\n"
     )
@@ -213,17 +206,14 @@ def _test_getflag(
         flag,
         unique_variant_index=unique_variant_index,
     )
-    msg = _jsonify_request_message(request_message)
     r = requests.post(
         f"{checker_url}",
-        data=msg,
+        data=request_message.model_dump_json(),
         headers={"content-type": "application/json"},
         timeout=REQUEST_TIMEOUT,
     )
     assert r.status_code == 200
-    result_message: CheckerResultMessage = jsons.loads(
-        r.text, CheckerResultMessage, key_transformer=jsons.KEY_TRANSFORMER_SNAKECASE
-    )
+    result_message = CheckerResultMessage.model_validate_json(r.text)
     assert CheckerTaskResult(result_message.result) == expected_result, (
         f"\nMessage: {result_message.message}\n"
     )
@@ -246,17 +236,14 @@ def _test_putnoise(
         service_address,
         unique_variant_index=unique_variant_index,
     )
-    msg = _jsonify_request_message(request_message)
     r = requests.post(
         f"{checker_url}",
-        data=msg,
+        data=request_message.model_dump_json(),
         headers={"content-type": "application/json"},
         timeout=REQUEST_TIMEOUT,
     )
     assert r.status_code == 200
-    result_message: CheckerResultMessage = jsons.loads(
-        r.text, CheckerResultMessage, key_transformer=jsons.KEY_TRANSFORMER_SNAKECASE
-    )
+    result_message = CheckerResultMessage.model_validate_json(r.text)
     assert CheckerTaskResult(result_message.result) == expected_result, (
         f"\nMessage: {result_message.message}\n"
     )
@@ -279,17 +266,14 @@ def _test_getnoise(
         service_address,
         unique_variant_index=unique_variant_index,
     )
-    msg = _jsonify_request_message(request_message)
     r = requests.post(
         f"{checker_url}",
-        data=msg,
+        data=request_message.model_dump_json(),
         headers={"content-type": "application/json"},
         timeout=REQUEST_TIMEOUT,
     )
     assert r.status_code == 200
-    result_message: CheckerResultMessage = jsons.loads(
-        r.text, CheckerResultMessage, key_transformer=jsons.KEY_TRANSFORMER_SNAKECASE
-    )
+    result_message = CheckerResultMessage.model_validate_json(r.text)
     assert CheckerTaskResult(result_message.result) == expected_result, (
         f"\nMessage: {result_message.message}\n"
     )
@@ -312,17 +296,14 @@ def _test_havoc(
         service_address,
         unique_variant_index=unique_variant_index,
     )
-    msg = _jsonify_request_message(request_message)
     r = requests.post(
         f"{checker_url}",
-        data=msg,
+        data=request_message.model_dump_json(),
         headers={"content-type": "application/json"},
         timeout=REQUEST_TIMEOUT,
     )
     assert r.status_code == 200
-    result_message: CheckerResultMessage = jsons.loads(
-        r.text, CheckerResultMessage, key_transformer=jsons.KEY_TRANSFORMER_SNAKECASE
-    )
+    result_message = CheckerResultMessage.model_validate_json(r.text)
     assert CheckerTaskResult(result_message.result) == expected_result, (
         f"\nMessage: {result_message.message}\n"
     )
@@ -351,17 +332,14 @@ def _test_exploit(
         flag_hash=flag_hash,
         attack_info=attack_info,
     )
-    msg = _jsonify_request_message(request_message)
     r = requests.post(
         f"{checker_url}",
-        data=msg,
+        data=request_message.model_dump_json(),
         headers={"content-type": "application/json"},
         timeout=REQUEST_TIMEOUT,
     )
     assert r.status_code == 200
-    result_message: CheckerResultMessage = jsons.loads(
-        r.text, CheckerResultMessage, key_transformer=jsons.KEY_TRANSFORMER_SNAKECASE
-    )
+    result_message = CheckerResultMessage.model_validate_json(r.text)
     assert CheckerTaskResult(result_message.result) == expected_result, (
         f"\nMessage: {result_message.message}\n"
     )
@@ -645,7 +623,7 @@ def _do_exploit_run(
         return False, e
 
 
-def test_exploit_per_exploit_id(
+def test_exploit(
     encoding, round_id, exploit_id, flag_variants, service_address, checker_url
 ):
     results = [
@@ -659,7 +637,32 @@ def test_exploit_per_exploit_id(
     raise Exception([r[1] for r in results])
 
 
-def test_exploit_per_flag_id(
+def test_exploit_multiplied(
+    encoding,
+    round_id,
+    exploit_id_multiplied,
+    exploit_variants,
+    flag_variants,
+    service_address,
+    checker_url,
+):
+    results = [
+        _do_exploit_run(
+            encoding,
+            round_id,
+            exploit_id_multiplied % exploit_variants,
+            flag_id,
+            service_address,
+            checker_url,
+        )
+        for flag_id in range(flag_variants)
+    ]
+    if any(r[0] for r in results):
+        return
+    raise Exception([r[1] for r in results])
+
+
+def test_flagstore_exploitable(
     encoding, round_id, exploit_variants, flag_id, service_address, checker_url
 ):
     results = [
@@ -699,9 +702,9 @@ def test_checker_info_message_case(
         timeout=REQUEST_TIMEOUT,
     )
     assert r.status_code == 200
-    result_message: CheckerInfoMessage = jsons.loads(
-        r.text, CheckerInfoMessage, key_transformer=jsons.KEY_TRANSFORMER_SNAKECASE
+    camelcase_json = jsons.dumps(
+        r.json(), key_transformer=jsons.KEY_TRANSFORMER_CAMELCASE, sort_keys=True
     )
-    assert r.json() == json.loads(
-        jsons.dumps(result_message, key_transformer=jsons.KEY_TRANSFORMER_CAMELCASE)
-    )
+    assert jsons.dumps(r.json(), sort_keys=True) == camelcase_json
+    info_message = CheckerInfoMessage.model_validate_json(r.text)
+    assert r.json() == info_message.model_dump(by_alias=True)
