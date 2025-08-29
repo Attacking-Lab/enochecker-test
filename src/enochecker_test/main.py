@@ -11,7 +11,7 @@ from urllib3.util.retry import Retry
 
 
 def run_tests(
-    host: str, port: int, service_address: str, test_expr: str, multiplier: int
+    host: str, port: int, service_address: str, test_expr: str, multiplier: int, seed: int
 ):
     s = requests.Session()
     retry_strategy = Retry(
@@ -41,6 +41,7 @@ def run_tests(
         f"--havoc-variants={info.havoc_variants}",
         f"--exploit-variants={info.exploit_variants}",
         f"--multiplier={multiplier}",
+        f"--seed={seed}",
         "--durations=0",
         "-v",
     ]
@@ -110,6 +111,13 @@ service's docker container as obtained by e.g:
         default=2
     )
     parser.add_argument(
+        "-s",
+        "--seed",
+        help="Seed to use for task PRNG (0 = unseeded)",
+        type=int,
+        default=0
+    )
+    parser.add_argument(
         "testexpr",
         help="Specify the tests that should be run in the syntax expected by pytests -k flag, e.g. 'test_getflag' or 'not exploit'. If no expr is specified, all tests will be run.",
         nargs="?",
@@ -148,4 +156,5 @@ service's docker container as obtained by e.g:
         args.service_address,
         args.testexpr,
         args.multiplier,
+        args.seed
     )
