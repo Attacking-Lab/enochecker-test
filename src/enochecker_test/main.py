@@ -73,23 +73,35 @@ service's docker container as obtained by e.g:
     parser.add_argument(
         "-a",
         "--checker-address",
-        help="The address on which the checker is listening (defaults to the ENOCHECKER_TEST_CHECKER_ADDRESS environment variable)",
-        default=os.environ.get("ENOCHECKER_TEST_CHECKER_ADDRESS", "localhost"),
+        help="The address on which the checker is listening (defaults to the ENOCHECKER_CHECKER_ADDRESS environment variable)",
+        default=os.environ.get("ENOCHECKER_CHECKER_ADDRESS", "localhost"),
+    )
+    parser.add_argument(
+        "-n",
+        "--checker-network",
+        help="The name of the checker docker network to determine the IP from",
+        default=os.environ.get("ENOCHECKER_CHECKER_NETWORK"),
     )
     parser.add_argument(
         "-p",
         "--checker-port",
-        help="The port on which the checker is listening (defaults to ENOCHECKER_TEST_CHECKER_PORT environment variable)",
+        help="The port on which the checker is listening (defaults to ENOCHECKER_CHECKER_PORT environment variable)",
         choices=range(1, 65536),
         metavar="{1..65535}",
         type=int,
-        default=os.environ.get("ENOCHECKER_TEST_CHECKER_PORT"),
+        default=os.environ.get("ENOCHECKER_CHECKER_PORT"),
     )
     parser.add_argument(
         "-A",
         "--service-address",
-        help="The address on which the checker can reach the service (defaults to ENOCHECKER_TEST_SERVICE_ADDRESS environment variable)",
-        default=os.environ.get("ENOCHECKER_TEST_SERVICE_ADDRESS"),
+        help="The address on which the checker can reach the service (defaults to ENOCHECKER_SERVICE_ADDRESS environment variable)",
+        default=os.environ.get("ENOCHECKER_SERVICE_ADDRESS"),
+    )
+    parser.add_argument(
+        "-N",
+        "--service-network",
+        help="The name of the service docker network to determine the IP from",
+        default=os.environ.get("ENOCHECKER_SERVICE_NETWORK"),
     )
     parser.add_argument(
         "testexpr",
@@ -99,15 +111,28 @@ service's docker container as obtained by e.g:
 
     args = parser.parse_args()
 
+    if args.service_network or args.checker_network:
+        import docker
+
+        client = docker.from_env()
+
+        if args.service_network and not args.service_address:
+            network = client.networks.get(args.service_network)
+            args.service_address = network.attrs["IPAM"]["Config"][0]["Gateway"]
+
+        if args.checker_network and not args.checker_address:
+            network = client.networks.get(args.service_network)
+            args.checker_address = network.attrs["IPAM"]["Config"][0]["Gateway"]
+
     if not args.checker_port:
         parser.print_usage()
         raise Exception(
-            "Missing enochecker port, please set the ENOCHECKER_TEST_CHECKER_PORT environment variable"
+            "Missing enochecker port, please set the ENOCHECKER_CHECKER_PORT environment variable"
         )
-    if not args.service_address:
+    if not args.service_address and not args.service_network:
         parser.print_usage()
         raise Exception(
-            "Missing service address, please set the ENOCHECKER_TEST_SERVICE_ADDRESS environment variable"
+            "Missing service address, please set the ENOCHECKER_SERVICE_ADDRESS environment variable"
         )
 
     logging.basicConfig(level=logging.INFO)

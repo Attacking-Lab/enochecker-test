@@ -10,7 +10,9 @@ authors = [
 license = "MIT"
 readme = "README.md"
 dependencies = [
+	"docker>=7.1.0",
 	"jsons~=1.6.3",
+	"pytest>=8.2.2",
 	"requests~=2.32.2",
 ]
 classifiers = [
@@ -42,6 +44,7 @@ test = [
 ]
 typing = [
 	"mypy>=1.17.1",
+	"types-docker>=7.1.0.20250822",
 	"types-requests>=2.32.4.20250809",
 ]
 
