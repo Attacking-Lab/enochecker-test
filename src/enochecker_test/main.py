@@ -11,7 +11,12 @@ from urllib3.util.retry import Retry
 
 
 def run_tests(
-    host: str, port: int, service_address: str, test_expr: str, multiplier: int, seed: int
+    host: str,
+    port: int,
+    service_address: str,
+    test_expr: str,
+    multiplier: int,
+    seed: int,
 ):
     s = requests.Session()
     retry_strategy = Retry(
@@ -108,14 +113,14 @@ service's docker container as obtained by e.g:
         "--multiplier",
         help="Number of times to run for chains with _multiplied methods for",
         type=int,
-        default=2
+        default=2,
     )
     parser.add_argument(
         "-s",
         "--seed",
         help="Seed to use for task PRNG (0 = unseeded)",
         type=int,
-        default=0
+        default=0,
     )
     parser.add_argument(
         "testexpr",
@@ -156,5 +161,5 @@ service's docker container as obtained by e.g:
         args.service_address,
         args.testexpr,
         args.multiplier,
-        args.seed
+        args.seed,
     )
