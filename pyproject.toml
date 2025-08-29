@@ -1,7 +1,7 @@
 [project]
 name = "enochecker_test"
 version = "0.11.0"
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 description = "Library to help testing checker scripts based on enochecker"
 authors = [
 	{ name = "Louis Burda", email = "dev@sinitax.com" },
@@ -24,7 +24,7 @@ classifiers = [
 
 [dependency-groups]
 prod = [
-	"enochecker-core~=0.11.1",
+	"enochecker-core",
 ]
 dev = [
 	"types-requests~=2.30",
@@ -108,7 +108,6 @@ conflicts = [
 ]
 
 [tool.uv.sources]
-enochecker3 = { git = "https://github.com/attacking-lab/enochecker3", rev = "v0.10.1" }
 enochecker-core = [
 	{ git = "https://github.com/attacking-lab/enochecker-core", rev = "v0.11.1", group = "prod" },
 	{ path = "lib/.enochecker-core", editable = true, extra = "dev" }

@@ -1,5 +1,7 @@
-UV_FLAGS ?= --inexact
-UV_RUN ?= VIRTUAL_ENV=.venv uv run $(UV_FLAGS)
+UV_FLAGS ?= --inexact --no-group prod --group dev --all-extras $(UV_FLAGS_EXTRA)
+UV_RUN ?= env VIRTUAL_ENV=.venv uv run $(UV_FLAGS)
+
+TEST_FLAGS ?=
 
 all: format lint mypy test
 
@@ -18,14 +20,14 @@ lint-fix:
 	@$(UV_RUN) --group lint ruff check --fix
 
 mypy:
-	@$(UV_RUN) --group typing mypy enochecker_test/
+	@$(UV_RUN) --group typing mypy src/enochecker_test/
 
 build:
 	@uv build
 
 test:
 	@test -z "$(shell ls tests &>/dev/null)" || \
-		($(UV_RUN) --group test coverage run -m pytest -W error -v && \
+		($(UV_RUN) --group test coverage run -m pytest -W error -v $(TEST_FLAGS) && \
 		$(UV_RUN) --group test coverage report -m)
 
 sync:
