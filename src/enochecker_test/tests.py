@@ -702,6 +702,7 @@ def _do_exploit_run(
     flag_id,
     service_address,
     checker_url: str,
+    tries: int = 1,
 ):
     try:
         flag = generate_dummyflag(encoding)
@@ -710,22 +711,23 @@ def _do_exploit_run(
         attack_info = _test_putflag(
             flag, next(task_ids), round_id, flag_id, service_address, checker_url
         )
-        found_flag = _test_exploit(
-            _flag_regex_for_encoding(encoding),
-            flag_hash,
-            attack_info,
-            next(task_ids),
-            round_id,
-            exploit_id,
-            service_address,
-            checker_url,
-        )
-        if found_flag == flag:
-            return True, None
+        for _ in range(tries):
+            found_flag = _test_exploit(
+                _flag_regex_for_encoding(encoding),
+                flag_hash,
+                attack_info,
+                next(task_ids),
+                round_id,
+                exploit_id,
+                service_address,
+                checker_url,
+            )
+            if found_flag != flag:
+                return False, Exception(
+                    f"Found flag is incorrect. Expected: {flag}. Found: {found_flag}"
+                )
 
-        return False, Exception(
-            f"Found flag is incorrect. Expected: {flag}. Found: {found_flag}"
-        )
+        return True, None
 
     except Exception as e:
         return False, e
@@ -757,6 +759,33 @@ def test_exploit(
     raise Exception([r[1] for r in results])
 
 
+def test_exploit_twice(
+    encoding,
+    task_ids,
+    round_id,
+    exploit_id,
+    flag_variants,
+    service_address,
+    checker_url: str,
+):
+    results = [
+        _do_exploit_run(
+            encoding,
+            task_ids,
+            round_id,
+            exploit_id,
+            flag_id,
+            service_address,
+            checker_url,
+            tries=2,
+        )
+        for flag_id in range(flag_variants)
+    ]
+    if any(r[0] for r in results):
+        return
+    raise Exception([r[1] for r in results])
+
+
 def test_exploit_multiplied(
     encoding,
     task_ids,
@@ -767,21 +796,15 @@ def test_exploit_multiplied(
     service_address,
     checker_url,
 ):
-    results = [
-        _do_exploit_run(
-            encoding,
-            task_ids,
-            round_id,
-            exploit_id_multiplied % exploit_variants,
-            flag_id,
-            service_address,
-            checker_url,
-        )
-        for flag_id in range(flag_variants)
-    ]
-    if any(r[0] for r in results):
-        return
-    raise Exception([r[1] for r in results])
+    test_exploit(
+        encoding,
+        task_ids,
+        round_id,
+        exploit_id_multiplied % exploit_variants,
+        flag_variants,
+        service_address,
+        checker_url,
+    )
 
 
 def test_flagstore_exploitable(
