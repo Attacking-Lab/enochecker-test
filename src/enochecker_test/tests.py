@@ -851,10 +851,13 @@ def test_flagstore_exploitable(
     task_ids,
     round_id,
     exploit_variants,
+    flag_variants,
     flag_id,
     service_address,
     checker_url: str,
 ):
+    if flag_variants == 0:
+        return
     results = [
         _do_exploit_run(
             encoding,
