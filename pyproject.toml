@@ -1,6 +1,6 @@
 [project]
 name = "enochecker_test"
-version = "0.11.3"
+version = "0.12.0"
 requires-python = ">=3.10"
 description = "Library to help testing checker scripts based on enochecker"
 authors = [
@@ -113,6 +113,6 @@ conflicts = [
 
 [tool.uv.sources]
 enochecker-core = [
-	{ git = "https://github.com/attacking-lab/enochecker-core", rev = "v0.11.2", group = "prod" },
+	{ git = "https://github.com/attacking-lab/enochecker-core", rev = "v0.12.0", group = "prod" },
 	{ path = "lib/.enochecker-core", editable = true, extra = "dev" }
 ]

@@ -19,6 +19,7 @@ global_round_id = 0
 FLAG_REGEX_ASCII = r"ENO[A-Za-z0-9+\/=]{48}"
 FLAG_REGEX_UTF8 = r"🥺[A-Za-z0-9+\/=]{48}🥺🥺"
 REQUEST_TIMEOUT = 10
+TEST_REQUEST_TIMEOUT = 3600
 CHAIN_ID_PREFIX = secrets.token_hex(20)
 
 random_source = Random
@@ -68,6 +69,7 @@ def pytest_generate_tests(metafunc):
     noise_variants: int = metafunc.config.getoption("--noise-variants")
     havoc_variants: int = metafunc.config.getoption("--havoc-variants")
     exploit_variants: int = metafunc.config.getoption("--exploit-variants")
+    test_variants: int = metafunc.config.getoption("--test-variants")
     multiplier: int = metafunc.config.getoption("--multiplier")
 
     if "flag_id" in metafunc.fixturenames:
@@ -106,6 +108,9 @@ def pytest_generate_tests(metafunc):
         metafunc.parametrize("exploit_id", range(exploit_variants))
     if "exploit_variants" in metafunc.fixturenames:
         metafunc.parametrize("exploit_variants", [exploit_variants])
+
+    if "test_id" in metafunc.fixturenames:
+        metafunc.parametrize("test_id", range(test_variants))
 
     if "encoding" in metafunc.fixturenames:
         metafunc.parametrize("encoding", ["ascii", "utf8"])
@@ -149,6 +154,7 @@ def _create_request_message(
     flag_regex: Optional[str] = None,
     flag_hash: Optional[str] = None,
     attack_info: Optional[str] = None,
+    timeout: Optional[int] = None,
 ) -> CheckerTaskMessage:
     if unique_variant_index is None:
         unique_variant_index = variant_id
@@ -174,7 +180,7 @@ def _create_request_message(
         related_round_id=round_id,
         flag=flag,
         variant_id=variant_id,
-        timeout=REQUEST_TIMEOUT * 1000,
+        timeout=timeout if timeout is not None else REQUEST_TIMEOUT * 1000,
         round_length=60000,
         task_chain_id=task_chain_id,
         flag_regex=flag_regex,
@@ -384,6 +390,39 @@ def _test_exploit(
         f"\nMessage: {result_message.message}\n"
     )
     return result_message.flag
+
+
+def _test_test(
+    task_id,
+    round_id,
+    test_id,
+    service_address,
+    checker_url,
+    unique_variant_index=None,
+    expected_result=CheckerTaskResult.OK,
+):
+    if unique_variant_index is None:
+        unique_variant_index = test_id
+    request_message = _create_request_message(
+        "test",
+        task_id,
+        round_id,
+        test_id,
+        service_address,
+        unique_variant_index=unique_variant_index,
+        timeout=TEST_REQUEST_TIMEOUT * 1000,
+    )
+    r = requests.post(
+        f"{checker_url}",
+        data=request_message.model_dump_json(),
+        headers={"content-type": "application/json"},
+        timeout=TEST_REQUEST_TIMEOUT,
+    )
+    assert r.status_code == 200
+    result_message = CheckerResultMessage.model_validate_json(r.text)
+    assert CheckerTaskResult(result_message.result) == expected_result, (
+        f"\nMessage: {result_message.message}\n"
+    )
 
 
 def test_putflag(encoding, task_ids, round_id, flag_id, service_address, checker_url):
@@ -866,3 +905,7 @@ def test_checker_info_message_case(
     assert jsons.dumps(r.json(), sort_keys=True) == camelcase_json
     info_message = CheckerInfoMessage.model_validate_json(r.text)
     assert r.json() == info_message.model_dump(by_alias=True)
+
+
+def test_test(task_ids, round_id, test_id, service_address, checker_url):
+    _test_test(next(task_ids), round_id, test_id, service_address, checker_url)

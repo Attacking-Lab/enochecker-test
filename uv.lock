@@ -234,31 +234,20 @@ wheels = [
 
 [[package]]
 name = "enochecker-core"
-version = "0.11.0"
-source = { git = "https://github.com/attacking-lab/enochecker-core?rev=v0.11.1#5b5d705adbe9163f8c36c8aef09f4b2de229e9d2" }
-dependencies = [
-    { name = "pydantic" },
-]
+version = "0.0.9999"
+source = { editable = "lib/.enochecker-core" }
 
 [[package]]
 name = "enochecker-core"
-version = "0.11.0"
-source = { editable = "lib/.enochecker-core" }
+version = "0.11.3"
+source = { git = "https://github.com/attacking-lab/enochecker-core?rev=dcc6eb14e60062139d9993bf005837a55a68f5b1#dcc6eb14e60062139d9993bf005837a55a68f5b1" }
 dependencies = [
     { name = "pydantic" },
 ]
 
-[package.metadata]
-requires-dist = [{ name = "pydantic", specifier = ">=2.11.7" }]
-
-[package.metadata.requires-dev]
-format = [{ name = "ruff", specifier = ">=0.12.11" }]
-lint = [{ name = "ruff", specifier = ">=0.12.11" }]
-typing = [{ name = "mypy", specifier = ">=1.17.1" }]
-
 [[package]]
 name = "enochecker-test"
-version = "0.11.0"
+version = "0.11.3"
 source = { editable = "." }
 dependencies = [
     { name = "docker" },
@@ -269,7 +258,7 @@ dependencies = [
 
 [package.optional-dependencies]
 dev = [
-    { name = "enochecker-core", version = "0.11.0", source = { editable = "lib/.enochecker-core" } },
+    { name = "enochecker-core", version = "0.0.9999", source = { editable = "lib/.enochecker-core" } },
 ]
 
 [package.dev-dependencies]
@@ -283,7 +272,7 @@ lint = [
     { name = "ruff" },
 ]
 prod = [
-    { name = "enochecker-core", version = "0.11.0", source = { git = "https://github.com/attacking-lab/enochecker-core?rev=v0.11.1#5b5d705adbe9163f8c36c8aef09f4b2de229e9d2" } },
+    { name = "enochecker-core", version = "0.11.3", source = { git = "https://github.com/attacking-lab/enochecker-core?rev=dcc6eb14e60062139d9993bf005837a55a68f5b1#dcc6eb14e60062139d9993bf005837a55a68f5b1" } },
 ]
 test = [
     { name = "coverage" },
@@ -310,7 +299,7 @@ provides-extras = ["dev"]
 dev = [{ name = "types-requests", specifier = "~=2.30" }]
 format = [{ name = "ruff", specifier = ">=0.12.9" }]
 lint = [{ name = "ruff", specifier = ">=0.12.9" }]
-prod = [{ name = "enochecker-core", git = "https://github.com/attacking-lab/enochecker-core?rev=v0.11.1" }]
+prod = [{ name = "enochecker-core", git = "https://github.com/attacking-lab/enochecker-core?rev=dcc6eb14e60062139d9993bf005837a55a68f5b1" }]
 test = [
     { name = "coverage", specifier = ">=7.10.4" },
     { name = "enochecker3", specifier = ">=0.10.0" },

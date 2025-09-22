@@ -29,12 +29,13 @@ def run_tests(
         raise Exception("Failed to get /service from checker")
     info = CheckerInfoMessage.model_validate_json(r.text)
     logging.info(
-        "Testing service %s, flagVariants: %d, noiseVariants: %d, havocVariants: %d, exploitVariants: %d",
+        "Testing service %s, flagVariants: %d, noiseVariants: %d, havocVariants: %d, exploitVariants: %d, testVariants: %d",
         info.service_name,
         info.flag_variants,
         info.noise_variants,
         info.havoc_variants,
         info.exploit_variants,
+        info.test_variants,
     )
 
     test_args = [
@@ -45,6 +46,7 @@ def run_tests(
         f"--noise-variants={info.noise_variants}",
         f"--havoc-variants={info.havoc_variants}",
         f"--exploit-variants={info.exploit_variants}",
+        f"--test-variants={info.test_variants}",
         f"--multiplier={multiplier}",
         f"--seed={seed}",
         "--durations=0",
