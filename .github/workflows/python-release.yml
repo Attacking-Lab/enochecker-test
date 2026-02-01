@@ -15,13 +15,14 @@ jobs:
       with:
         python-version: '3.x'
 
-    - name: Install poetry
+    - name: Install uv
       run: |
-        python -m pip install poetry
+        echo "UV_FLAGS=--exact --frozen" >> $GITHUB_ENV
+        python -m pip install uv
 
     - name: Build a binary wheel and a source tarball
       run: |
-        python -m poetry build
+        make --trace build
 
     - name: Publish to PyPI
       uses: pypa/gh-action-pypi-publish@81e9d935c883d0b210363ab89cf05f3894778450 # v1.8.14

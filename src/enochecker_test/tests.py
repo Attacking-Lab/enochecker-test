@@ -1,9 +1,9 @@
 import asyncio
 import base64
 import hashlib
-import json
 import secrets
 from typing import Optional
+from random import Random, SystemRandom
 
 import httpx
 import jsons
@@ -20,7 +20,19 @@ global_round_id = 0
 FLAG_REGEX_ASCII = r"ENO[A-Za-z0-9+\/=]{48}"
 FLAG_REGEX_UTF8 = r"🥺[A-Za-z0-9+\/=]{48}🥺🥺"
 REQUEST_TIMEOUT = 10
+TEST_REQUEST_TIMEOUT = 3600
 CHAIN_ID_PREFIX = secrets.token_hex(20)
+
+random_source = Random
+task_id_random = random_source()
+
+
+class TaskIdFactory:
+    def __init__(self, seed):
+        self.rand = random_source(seed)
+
+    def __next__(self):
+        return self.rand.randint(0, 1 << 48)
 
 
 @pytest.fixture
@@ -44,16 +56,28 @@ def checker_url(checker_address, checker_port):
 
 
 def pytest_generate_tests(metafunc):
+    global task_id_random
+    global random_source
+
+    seed: int = metafunc.config.getoption("--seed")
+    if seed == 0:
+        random_source = SystemRandom
+    else:
+        random_source = Random
+    task_id_random = random_source(seed)
+
     flag_variants: int = metafunc.config.getoption("--flag-variants")
     noise_variants: int = metafunc.config.getoption("--noise-variants")
     havoc_variants: int = metafunc.config.getoption("--havoc-variants")
     exploit_variants: int = metafunc.config.getoption("--exploit-variants")
+    test_variants: int = metafunc.config.getoption("--test-variants")
+    multiplier: int = metafunc.config.getoption("--multiplier")
 
     if "flag_id" in metafunc.fixturenames:
         metafunc.parametrize("flag_id", range(flag_variants))
     if "flag_id_multiplied" in metafunc.fixturenames:
         metafunc.parametrize(
-            "flag_id_multiplied", range(flag_variants, flag_variants * 2)
+            "flag_id_multiplied", range(flag_variants, flag_variants * multiplier)
         )
     if "flag_variants" in metafunc.fixturenames:
         metafunc.parametrize("flag_variants", [flag_variants])
@@ -62,7 +86,7 @@ def pytest_generate_tests(metafunc):
         metafunc.parametrize("noise_id", range(noise_variants))
     if "noise_id_multiplied" in metafunc.fixturenames:
         metafunc.parametrize(
-            "noise_id_multiplied", range(noise_variants, noise_variants * 2)
+            "noise_id_multiplied", range(noise_variants, noise_variants * multiplier)
         )
     if "noise_variants" in metafunc.fixturenames:
         metafunc.parametrize("noise_variants", [noise_variants])
@@ -71,15 +95,23 @@ def pytest_generate_tests(metafunc):
         metafunc.parametrize("havoc_id", range(havoc_variants))
     if "havoc_id_multiplied" in metafunc.fixturenames:
         metafunc.parametrize(
-            "havoc_id_multiplied", range(havoc_variants, havoc_variants * 2)
+            "havoc_id_multiplied", range(havoc_variants, havoc_variants * multiplier)
         )
     if "havoc_variants" in metafunc.fixturenames:
         metafunc.parametrize("havoc_variants", [havoc_variants])
 
+    if "exploit_id_multiplied" in metafunc.fixturenames:
+        metafunc.parametrize(
+            "exploit_id_multiplied",
+            range(exploit_variants, exploit_variants * multiplier),
+        )
     if "exploit_id" in metafunc.fixturenames:
         metafunc.parametrize("exploit_id", range(exploit_variants))
     if "exploit_variants" in metafunc.fixturenames:
         metafunc.parametrize("exploit_variants", [exploit_variants])
+
+    if "test_id" in metafunc.fixturenames:
+        metafunc.parametrize("test_id", range(test_variants))
 
     if "encoding" in metafunc.fixturenames:
         metafunc.parametrize("encoding", ["ascii", "utf8"])
@@ -104,6 +136,11 @@ def round_id():
     return global_round_id
 
 
+@pytest.fixture()
+def task_ids():
+    return TaskIdFactory(task_id_random.randbytes(8))
+
+
 def _flag_regex_for_encoding(encoding: str) -> str:
     if encoding == "utf8":
         return FLAG_REGEX_UTF8
@@ -112,6 +149,7 @@ def _flag_regex_for_encoding(encoding: str) -> str:
 
 def _create_request_message(
     method: str,
+    task_id: int,
     round_id: int,
     variant_id: int,
     service_address: str,
@@ -120,6 +158,7 @@ def _create_request_message(
     flag_regex: Optional[str] = None,
     flag_hash: Optional[str] = None,
     attack_info: Optional[str] = None,
+    timeout: Optional[int] = None,
 ) -> CheckerTaskMessage:
     if unique_variant_index is None:
         unique_variant_index = variant_id
@@ -136,7 +175,7 @@ def _create_request_message(
     )
 
     return CheckerTaskMessage(
-        task_id=round_id,
+        task_id=task_id,
         method=CheckerMethod(method),
         address=service_address,
         team_id=0,
@@ -145,21 +184,12 @@ def _create_request_message(
         related_round_id=round_id,
         flag=flag,
         variant_id=variant_id,
-        timeout=REQUEST_TIMEOUT * 1000,
+        timeout=timeout if timeout is not None else REQUEST_TIMEOUT * 1000,
         round_length=60000,
         task_chain_id=task_chain_id,
         flag_regex=flag_regex,
         flag_hash=flag_hash,
         attack_info=attack_info,
-    )
-
-
-def _jsonify_request_message(request_message: CheckerTaskMessage):
-    return jsons.dumps(
-        request_message,
-        use_enum_name=False,
-        key_transformer=jsons.KEY_TRANSFORMER_CAMELCASE,
-        strict=True,
     )
 
 
@@ -169,33 +199,32 @@ async def _execute_request(
     expected_result: CheckerTaskResult,
     client: Optional[httpx.AsyncClient],
 ) -> CheckerResultMessage:
-    msg = _jsonify_request_message(request_message)
     if client is not None:
         r = await client.post(
             f"{checker_url}",
-            data=msg,
-            headers={"content-type": "application/json"},
+            json=request_message.model_dump(),
             timeout=REQUEST_TIMEOUT,
         )
     else:
         async with httpx.AsyncClient() as client:
             r = await client.post(
                 f"{checker_url}",
-                data=msg,
-                headers={"content-type": "application/json"},
+                json=request_message.model_dump(),
                 timeout=REQUEST_TIMEOUT,
             )
-    result_message: CheckerResultMessage = jsons.loads(
-        r.content, CheckerResultMessage, key_transformer=jsons.KEY_TRANSFORMER_SNAKECASE
+    print(r.content)
+    result_message: CheckerResultMessage = CheckerResultMessage.model_validate_json(
+        r.content
     )
-    assert (
-        CheckerTaskResult(result_message.result) == expected_result
-    ), f"\nMessage: {result_message.message}\n"
+    assert CheckerTaskResult(result_message.result) == expected_result, (
+        f"\nMessage: {result_message.message}\n"
+    )
     return result_message
 
 
 async def _test_putflag(
     flag,
+    task_id,
     round_id,
     flag_id,
     service_address,
@@ -208,6 +237,7 @@ async def _test_putflag(
         unique_variant_index = flag_id
     request_message = _create_request_message(
         "putflag",
+        task_id,
         round_id,
         flag_id,
         service_address,
@@ -222,6 +252,7 @@ async def _test_putflag(
 
 async def _test_getflag(
     flag,
+    task_id,
     round_id,
     flag_id,
     service_address,
@@ -234,6 +265,7 @@ async def _test_getflag(
         unique_variant_index = flag_id
     request_message = _create_request_message(
         "getflag",
+        task_id,
         round_id,
         flag_id,
         service_address,
@@ -244,6 +276,7 @@ async def _test_getflag(
 
 
 async def _test_putnoise(
+    task_id,
     round_id,
     noise_id,
     service_address,
@@ -256,6 +289,7 @@ async def _test_putnoise(
         unique_variant_index = noise_id
     request_message = _create_request_message(
         "putnoise",
+        task_id,
         round_id,
         noise_id,
         service_address,
@@ -265,6 +299,7 @@ async def _test_putnoise(
 
 
 async def _test_getnoise(
+    task_id,
     round_id,
     noise_id,
     service_address,
@@ -277,6 +312,7 @@ async def _test_getnoise(
         unique_variant_index = noise_id
     request_message = _create_request_message(
         "getnoise",
+        task_id,
         round_id,
         noise_id,
         service_address,
@@ -286,6 +322,7 @@ async def _test_getnoise(
 
 
 async def _test_havoc(
+    task_id,
     round_id,
     havoc_id,
     service_address,
@@ -298,6 +335,7 @@ async def _test_havoc(
         unique_variant_index = havoc_id
     request_message = _create_request_message(
         "havoc",
+        task_id,
         round_id,
         havoc_id,
         service_address,
@@ -310,6 +348,7 @@ async def _test_exploit(
     flag_regex,
     flag_hash,
     attack_info,
+    task_id,
     round_id,
     exploit_id,
     service_address,
@@ -322,6 +361,7 @@ async def _test_exploit(
         unique_variant_index = exploit_id
     request_message = _create_request_message(
         "exploit",
+        task_id,
         round_id,
         exploit_id,
         service_address,
@@ -336,17 +376,52 @@ async def _test_exploit(
     return result_message.flag
 
 
-async def test_putflag(encoding, round_id, flag_id, service_address, checker_url):
+async def _test_test(
+    task_id,
+    round_id,
+    test_id,
+    service_address,
+    checker_url,
+    unique_variant_index=None,
+    expected_result=CheckerTaskResult.OK,
+    client=None,
+):
+    if unique_variant_index is None:
+        unique_variant_index = test_id
+    request_message = _create_request_message(
+        "test",
+        task_id,
+        round_id,
+        test_id,
+        service_address,
+        unique_variant_index=unique_variant_index,
+        timeout=TEST_REQUEST_TIMEOUT * 1000,
+    )
+    await _execute_request(request_message, checker_url, expected_result, client)
+
+
+async def test_putflag(
+    encoding, task_ids, round_id, flag_id, service_address, checker_url
+):
     flag = generate_dummyflag(encoding)
-    await _test_putflag(flag, round_id, flag_id, service_address, checker_url)
+    await _test_putflag(
+        flag, next(task_ids), round_id, flag_id, service_address, checker_url
+    )
 
 
 async def test_putflag_multiplied(
-    encoding, round_id, flag_id_multiplied, flag_variants, service_address, checker_url
+    encoding,
+    task_ids,
+    round_id,
+    flag_id_multiplied,
+    flag_variants,
+    service_address,
+    checker_url: str,
 ):
     flag = generate_dummyflag(encoding)
     await _test_putflag(
         flag,
+        next(task_ids),
         round_id,
         flag_id_multiplied % flag_variants,
         service_address,
@@ -356,11 +431,12 @@ async def test_putflag_multiplied(
 
 
 async def test_putflag_invalid_variant(
-    encoding, round_id, flag_variants, service_address, checker_url
+    encoding, task_ids, round_id, flag_variants, service_address, checker_url: str
 ):
     flag = generate_dummyflag(encoding)
     await _test_putflag(
         flag,
+        next(task_ids),
         round_id,
         flag_variants,
         service_address,
@@ -369,43 +445,65 @@ async def test_putflag_invalid_variant(
     )
 
 
-async def test_getflag(encoding, round_id, flag_id, service_address, checker_url):
+async def test_getflag(
+    encoding, task_ids, round_id, flag_id, service_address, checker_url
+):
     flag = generate_dummyflag(encoding)
-    await _test_putflag(flag, round_id, flag_id, service_address, checker_url)
-    await _test_getflag(flag, round_id, flag_id, service_address, checker_url)
+    await _test_putflag(
+        flag, next(task_ids), round_id, flag_id, service_address, checker_url
+    )
+    await _test_getflag(
+        flag, next(task_ids), round_id, flag_id, service_address, checker_url
+    )
 
 
 async def test_getflag_after_second_putflag_with_same_variant_id(
-    encoding, round_id, flag_id, flag_variants, service_address, checker_url
+    encoding, task_ids, round_id, flag_id, flag_variants, service_address, checker_url
 ):
     flag = generate_dummyflag(encoding)
-    await _test_putflag(flag, round_id, flag_id, service_address, checker_url)
+    await _test_putflag(
+        flag, next(task_ids), round_id, flag_id, service_address, checker_url
+    )
     await _test_putflag(
         generate_dummyflag(encoding),
+        next(task_ids),
         round_id,
         flag_id,
         service_address,
         checker_url,
         unique_variant_index=flag_id + flag_variants,
     )
-    await _test_getflag(flag, round_id, flag_id, service_address, checker_url)
+    await _test_getflag(
+        flag, next(task_ids), round_id, flag_id, service_address, checker_url
+    )
 
 
-async def test_getflag_twice(encoding, round_id, flag_id, service_address, checker_url):
+async def test_getflag_twice(
+    encoding, task_ids, round_id, flag_id, service_address, checker_url
+):
     flag = generate_dummyflag(encoding)
-    await _test_putflag(flag, round_id, flag_id, service_address, checker_url)
-    await _test_getflag(flag, round_id, flag_id, service_address, checker_url)
-    await _test_getflag(flag, round_id, flag_id, service_address, checker_url)
+    await _test_putflag(
+        flag, next(task_ids), round_id, flag_id, service_address, checker_url
+    )
+    await _test_getflag(
+        flag, next(task_ids), round_id, flag_id, service_address, checker_url
+    )
+    await _test_getflag(
+        flag, next(task_ids), round_id, flag_id, service_address, checker_url
+    )
 
 
 async def test_getflag_wrong_flag(
-    encoding, round_id, flag_id, service_address, checker_url
+    encoding, task_ids, round_id, flag_id, service_address, checker_url
 ):
     flag = generate_dummyflag(encoding)
-    await _test_putflag(flag, round_id, flag_id, service_address, checker_url)
+    await _test_putflag(
+        flag, next(task_ids), round_id, flag_id, service_address, checker_url
+    )
     wrong_flag = generate_dummyflag(encoding)
     await _test_getflag(
         wrong_flag,
+        next(task_ids),
         round_id,
         flag_id,
         service_address,
@@ -415,11 +513,12 @@ async def test_getflag_wrong_flag(
 
 
 async def test_getflag_without_putflag(
-    encoding, round_id, flag_id, service_address, checker_url
+    encoding, task_ids, round_id, flag_id, service_address, checker_url
 ):
     flag = generate_dummyflag(encoding)
     await _test_getflag(
         flag,
+        next(task_ids),
         round_id,
         flag_id,
         service_address,
@@ -429,11 +528,18 @@ async def test_getflag_without_putflag(
 
 
 async def test_getflag_multiplied(
-    encoding, round_id, flag_id_multiplied, flag_variants, service_address, checker_url
+    encoding,
+    task_ids,
+    round_id,
+    flag_id_multiplied,
+    flag_variants,
+    service_address,
+    checker_url,
 ):
     flag = generate_dummyflag(encoding)
     await _test_putflag(
         flag,
+        next(task_ids),
         round_id,
         flag_id_multiplied % flag_variants,
         service_address,
@@ -442,6 +548,7 @@ async def test_getflag_multiplied(
     )
     await _test_getflag(
         flag,
+        next(task_ids),
         round_id,
         flag_id_multiplied % flag_variants,
         service_address,
@@ -451,11 +558,12 @@ async def test_getflag_multiplied(
 
 
 async def test_getflag_invalid_variant(
-    encoding, round_id, flag_variants, service_address, checker_url
+    encoding, task_ids, round_id, flag_variants, service_address, checker_url
 ):
     flag = generate_dummyflag(encoding)
     await _test_getflag(
         flag,
+        next(task_ids),
         round_id,
         flag_variants,
         service_address,
@@ -464,14 +572,22 @@ async def test_getflag_invalid_variant(
     )
 
 
-async def test_putnoise(round_id, noise_id, service_address, checker_url):
-    await _test_putnoise(round_id, noise_id, service_address, checker_url)
+async def test_putnoise(round_id, task_ids, noise_id, service_address, checker_url):
+    await _test_putnoise(
+        round_id, next(task_ids), noise_id, service_address, checker_url
+    )
 
 
 async def test_putnoise_multiplied(
-    round_id, noise_id_multiplied, noise_variants, service_address, checker_url
+    task_ids,
+    round_id,
+    noise_id_multiplied,
+    noise_variants,
+    service_address,
+    checker_url,
 ):
     await _test_putnoise(
+        next(task_ids),
         round_id,
         noise_id_multiplied % noise_variants,
         service_address,
@@ -481,9 +597,10 @@ async def test_putnoise_multiplied(
 
 
 async def test_putnoise_invalid_variant(
-    round_id, noise_variants, service_address, checker_url
+    task_ids, round_id, noise_variants, service_address, checker_url
 ):
     await _test_putnoise(
+        next(task_ids),
         round_id,
         noise_variants,
         service_address,
@@ -492,35 +609,53 @@ async def test_putnoise_invalid_variant(
     )
 
 
-async def test_getnoise(round_id, noise_id, service_address, checker_url):
-    await _test_putnoise(round_id, noise_id, service_address, checker_url)
-    await _test_getnoise(round_id, noise_id, service_address, checker_url)
+async def test_getnoise(task_ids, round_id, noise_id, service_address, checker_url):
+    await _test_putnoise(
+        round_id, next(task_ids), noise_id, service_address, checker_url
+    )
+    await _test_getnoise(
+        round_id, next(task_ids), noise_id, service_address, checker_url
+    )
 
 
 async def test_getnoise_after_second_putnoise_with_same_variant_id(
-    round_id, noise_id, noise_variants, service_address, checker_url
+    task_ids, round_id, noise_id, noise_variants, service_address, checker_url
 ):
-    await _test_putnoise(round_id, noise_id, service_address, checker_url)
     await _test_putnoise(
+        next(task_ids), round_id, noise_id, service_address, checker_url
+    )
+    await _test_putnoise(
+        next(task_ids),
         round_id,
         noise_id,
         service_address,
         checker_url,
         unique_variant_index=noise_id + noise_variants,
     )
-    await _test_getnoise(round_id, noise_id, service_address, checker_url)
+    await _test_getnoise(
+        next(task_ids), round_id, noise_id, service_address, checker_url
+    )
 
 
-async def test_getnoise_twice(round_id, noise_id, service_address, checker_url):
-    await _test_putnoise(round_id, noise_id, service_address, checker_url)
-    await _test_getnoise(round_id, noise_id, service_address, checker_url)
-    await _test_getnoise(round_id, noise_id, service_address, checker_url)
+async def test_getnoise_twice(
+    task_ids, round_id, noise_id, service_address, checker_url
+):
+    await _test_putnoise(
+        next(task_ids), round_id, noise_id, service_address, checker_url
+    )
+    await _test_getnoise(
+        next(task_ids), round_id, noise_id, service_address, checker_url
+    )
+    await _test_getnoise(
+        next(task_ids), round_id, noise_id, service_address, checker_url
+    )
 
 
 async def test_getnoise_without_putnoise(
-    round_id, noise_id, service_address, checker_url
+    task_ids, round_id, noise_id, service_address, checker_url
 ):
     await _test_getnoise(
+        next(task_ids),
         round_id,
         noise_id,
         service_address,
@@ -530,9 +665,15 @@ async def test_getnoise_without_putnoise(
 
 
 async def test_getnoise_multiplied(
-    round_id, noise_id_multiplied, noise_variants, service_address, checker_url
+    task_ids,
+    round_id,
+    noise_id_multiplied,
+    noise_variants,
+    service_address,
+    checker_url,
 ):
     await _test_putnoise(
+        next(task_ids),
         round_id,
         noise_id_multiplied % noise_variants,
         service_address,
@@ -540,6 +681,7 @@ async def test_getnoise_multiplied(
         unique_variant_index=noise_id_multiplied,
     )
     await _test_getnoise(
+        next(task_ids),
         round_id,
         noise_id_multiplied % noise_variants,
         service_address,
@@ -549,9 +691,14 @@ async def test_getnoise_multiplied(
 
 
 async def test_getnoise_invalid_variant(
-    round_id, noise_variants, service_address, checker_url
+    task_ids: TaskIdFactory,
+    round_id: int,
+    noise_variants: int,
+    service_address: str,
+    checker_url: str,
 ):
     await _test_getnoise(
+        next(task_ids),
         round_id,
         noise_variants,
         service_address,
@@ -560,14 +707,20 @@ async def test_getnoise_invalid_variant(
     )
 
 
-async def test_havoc(round_id, havoc_id, service_address, checker_url):
-    await _test_havoc(round_id, havoc_id, service_address, checker_url)
+async def test_havoc(task_ids, round_id, havoc_id, service_address, checker_url):
+    await _test_havoc(next(task_ids), round_id, havoc_id, service_address, checker_url)
 
 
 async def test_havoc_multiplied(
-    round_id, havoc_id_multiplied, havoc_variants, service_address, checker_url
+    task_ids: TaskIdFactory,
+    round_id: int,
+    havoc_id_multiplied: int,
+    havoc_variants: int,
+    service_address: str,
+    checker_url: str,
 ):
     await _test_havoc(
+        next(task_ids),
         round_id,
         havoc_id_multiplied % havoc_variants,
         service_address,
@@ -577,9 +730,10 @@ async def test_havoc_multiplied(
 
 
 async def test_havoc_invalid_variant(
-    round_id, havoc_variants, service_address, checker_url
+    task_ids, round_id, havoc_variants, service_address, checker_url
 ):
     await _test_havoc(
+        next(task_ids),
         round_id,
         havoc_variants,
         service_address,
@@ -589,36 +743,61 @@ async def test_havoc_invalid_variant(
 
 
 async def _do_exploit_run(
-    encoding, round_id, exploit_id, flag_id, service_address, checker_url
+    encoding,
+    task_ids: TaskIdFactory,
+    round_id,
+    exploit_id,
+    flag_id,
+    service_address,
+    checker_url: str,
+    tries: int = 1,
 ):
     try:
         flag = generate_dummyflag(encoding)
         flag_hash = hashlib.sha256(flag.encode()).hexdigest()
 
         attack_info = await _test_putflag(
-            flag, round_id, flag_id, service_address, checker_url
+            flag, next(task_ids), round_id, flag_id, service_address, checker_url
         )
-        found_flag = await _test_exploit(
-            _flag_regex_for_encoding(encoding),
-            flag_hash,
-            attack_info,
-            round_id,
-            exploit_id,
-            service_address,
-            checker_url,
-        )
-        print(found_flag)
-        return found_flag == flag, None
+        for _ in range(tries):
+            found_flag = await _test_exploit(
+                _flag_regex_for_encoding(encoding),
+                flag_hash,
+                attack_info,
+                next(task_ids),
+                round_id,
+                exploit_id,
+                service_address,
+                checker_url,
+            )
+            if found_flag != flag:
+                return False, Exception(
+                    f"Found flag is incorrect. Expected: {flag}. Found: {found_flag}"
+                )
+
+        return True, None
     except Exception as e:
         return False, e
 
 
 async def test_exploit_per_exploit_id(
-    encoding, round_id, exploit_id, flag_variants, service_address, checker_url
+    encoding,
+    task_ids,
+    round_id,
+    exploit_id,
+    flag_variants,
+    service_address,
+    checker_url,
 ):
     results = [
         await _do_exploit_run(
-            encoding, round_id, exploit_id, flag_id, service_address, checker_url
+            encoding,
+            task_ids,
+            round_id,
+            exploit_id,
+            flag_id,
+            service_address,
+            checker_url,
         )
         for flag_id in range(flag_variants)
     ]
@@ -627,12 +806,101 @@ async def test_exploit_per_exploit_id(
     raise Exception([r[1] for r in results])
 
 
-async def test_exploit_per_flag_id(
-    encoding, round_id, exploit_variants, flag_id, service_address, checker_url
+async def test_exploit_twice(
+    encoding,
+    task_ids,
+    round_id,
+    exploit_id,
+    flag_variants,
+    service_address,
+    checker_url: str,
 ):
     results = [
         await _do_exploit_run(
-            encoding, round_id, exploit_id, flag_id, service_address, checker_url
+            encoding,
+            task_ids,
+            round_id,
+            exploit_id,
+            flag_id,
+            service_address,
+            checker_url,
+            tries=2,
+        )
+        for flag_id in range(flag_variants)
+    ]
+    if any(r[0] for r in results):
+        return
+    raise Exception([r[1] for r in results])
+
+
+# async def test_exploit_multiplied(
+#     encoding,
+#     task_ids,
+#     round_id,
+#     exploit_id_multiplied,
+#     exploit_variants,
+#     flag_variants,
+#     service_address,
+#     checker_url,
+# ):
+#     await _test_exploit(
+#         encoding,
+#         task_ids,
+#         round_id,
+#         exploit_id_multiplied % exploit_variants,
+#         flag_variants,
+#         service_address,
+#         checker_url,
+#     )
+
+
+async def test_flagstore_exploitable(
+    encoding,
+    task_ids,
+    round_id,
+    exploit_id,
+    exploit_variants,
+    flag_variants,
+    flag_id,
+    service_address,
+    checker_url: str,
+):
+    if flag_variants == 0:
+        return
+    results = [
+        await _do_exploit_run(
+            encoding,
+            task_ids,
+            round_id,
+            exploit_id,
+            flag_id,
+            service_address,
+            checker_url,
+        )
+    ]
+    if any(r[0] for r in results):
+        return
+    raise Exception([r[1] for r in results])
+
+
+async def test_exploit_per_flag_id(
+    encoding,
+    task_ids,
+    round_id,
+    exploit_variants,
+    flag_id,
+    service_address,
+    checker_url,
+):
+    results = [
+        await _do_exploit_run(
+            encoding,
+            task_ids,
+            round_id,
+            exploit_id,
+            flag_id,
+            service_address,
+            checker_url,
         )
         for exploit_id in range(exploit_variants)
     ]
@@ -642,7 +910,7 @@ async def test_exploit_per_flag_id(
 
 
 async def test_exploit_invalid_variant(
-    encoding, round_id, exploit_variants, service_address, checker_url
+    encoding, task_ids, round_id, exploit_variants, service_address, checker_url: str
 ):
     flag = generate_dummyflag(encoding)
     flag_hash = hashlib.sha256(flag.encode()).hexdigest()
@@ -651,6 +919,7 @@ async def test_exploit_invalid_variant(
         _flag_regex_for_encoding(encoding),
         flag_hash,
         None,
+        next(task_ids),
         round_id,
         exploit_variants,
         service_address,
@@ -668,16 +937,22 @@ async def test_checker_info_message_case(
             timeout=REQUEST_TIMEOUT,
         )
     assert r.status_code == 200
-    result_message: CheckerInfoMessage = jsons.loads(
-        r.content, CheckerInfoMessage, key_transformer=jsons.KEY_TRANSFORMER_SNAKECASE
+    camelcase_json = jsons.dumps(
+        r.json(), key_transformer=jsons.KEY_TRANSFORMER_CAMELCASE, sort_keys=True
     )
-    assert r.json() == json.loads(
-        jsons.dumps(result_message, key_transformer=jsons.KEY_TRANSFORMER_CAMELCASE)
-    )
+    assert jsons.dumps(r.json(), sort_keys=True) == camelcase_json
+    info_message = CheckerInfoMessage.model_validate_json(r.text)
+    assert r.json() == info_message.model_dump(by_alias=True)
 
 
+async def test_test(task_ids, round_id, test_id, service_address, checker_url):
+    await _test_test(next(task_ids), round_id, test_id, service_address, checker_url)
+
+
+@pytest.mark.stress
 async def test_stress(
     encoding,
+    task_ids,
     round_id,
     flag_variants,
     noise_variants,
@@ -695,6 +970,7 @@ async def test_stress(
             flag = generate_dummyflag(encoding)
             await _test_putflag(
                 flag,
+                next(task_ids),
                 round_id,
                 flag_id,
                 service_address,
@@ -705,6 +981,7 @@ async def test_stress(
 
         async def noise_fn(i, noise_id):
             await _test_putnoise(
+                next(task_ids),
                 round_id,
                 noise_id,
                 service_address,
@@ -715,6 +992,7 @@ async def test_stress(
 
         async def havoc_fn(i, havoc_id):
             await _test_havoc(
+                next(task_ids),
                 round_id,
                 havoc_id,
                 service_address,
