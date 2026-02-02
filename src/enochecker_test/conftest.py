@@ -27,3 +27,15 @@ def pytest_collection_modifyitems(config, items):
     for item in items:
         if "stress" in item.keywords:
             item.add_marker(skip_stress)
+
+
+@pytest.hookimpl(hookwrapper=True)
+def pytest_runtest_makereport(item, call):
+    outcome = yield
+    report = outcome.get_result()
+
+    # Only print the link if the test actually runs and fails
+    if report.when == "call" and report.failed:
+        trace_id = getattr(item, "trace_id", None)
+        if trace_id:
+            report.nodeid += f" [OTEL TRACE ID: {trace_id}]"
