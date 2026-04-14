@@ -1,6 +1,6 @@
 [project]
 name = "enochecker_test"
-version = "0.13.0"
+version = "0.14.0"
 requires-python = ">=3.10"
 description = "Library to help test checker scripts based on enochecker"
 authors = [
