@@ -7,6 +7,7 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+
     steps:
     - uses: actions/checkout@v2
 
@@ -15,16 +16,19 @@ jobs:
       with:
         python-version: '3.x'
 
-    - name: Install uv
+    - name: Setup environment
       run: |
-        echo "UV_FLAGS=--exact --frozen" >> $GITHUB_ENV
-        python -m pip install uv
+        sudo apt update -y && sudo apt install make
+        python -m pip install uv==0.8.5
+        uv sync --exact --frozen
+        echo "UV_FLAGS=--no-sync" >> $GITHUB_ENV
 
-    - name: Build a binary wheel and a source tarball
+    - name: Install pypa/build
       run: |
-        make --trace build
+        make build
 
     - name: Publish to PyPI
-      uses: pypa/gh-action-pypi-publish@81e9d935c883d0b210363ab89cf05f3894778450 # v1.8.14
+      uses: pypa/gh-action-pypi-publish@release/v1
       with:
+        user: __token__
         password: ${{ secrets.PYPI_API_TOKEN }}
