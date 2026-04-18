@@ -635,8 +635,8 @@ async def test_getflag_invalid_variant(
 
 async def test_putnoise(round_id, task_ids, noise_id, service_address, checker_url):
     await _test_putnoise(
-        round_id,
         next(task_ids),
+        round_id,
         noise_id,
         service_address,
         checker_url,
@@ -676,15 +676,15 @@ async def test_putnoise_invalid_variant(
 
 async def test_getnoise(task_ids, round_id, noise_id, service_address, checker_url):
     await _test_putnoise(
-        round_id,
         next(task_ids),
+        round_id,
         noise_id,
         service_address,
         checker_url,
     )
     await _test_getnoise(
-        round_id,
         next(task_ids),
+        round_id,
         noise_id,
         service_address,
         checker_url,
