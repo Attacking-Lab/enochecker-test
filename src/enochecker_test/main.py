@@ -16,6 +16,7 @@ def run_tests(
     multiplier: int,
     seed: int,
     stress: bool,
+    flag_types: str = "ascii,utf8",
 ):
     transport = httpx.HTTPTransport(retries=10)
     with httpx.Client(transport=transport) as client:
@@ -52,6 +53,7 @@ def run_tests(
     ]
     if stress:
         test_args.append("--stress")
+    test_args.append(f"--flag-types={flag_types}")
 
     if test_expr:
         test_args.append("-k")
@@ -130,6 +132,11 @@ service's docker container as obtained by e.g:
         action="store_true",
     )
     parser.add_argument(
+        "--flag-types",
+        help="Comma-separated list of flag encodings to test (default: ascii,utf8)",
+        default=os.environ.get("ENOCHECKER_FLAG_TYPES", "ascii,utf8"),
+    )
+    parser.add_argument(
         "testexpr",
         help="Specify the tests that should be run in the syntax expected by pytests -k flag, e.g. 'test_getflag' or 'not exploit'. If no expr is specified, all tests will be run.",
         nargs="?",
@@ -170,4 +177,5 @@ service's docker container as obtained by e.g:
         args.multiplier,
         args.seed,
         args.stress,
+        args.flag_types,
     )

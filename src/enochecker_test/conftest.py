@@ -23,6 +23,7 @@ def pytest_addoption(parser):
     parser.addoption("--multiplier", action="store", type=int)
     parser.addoption("--seed", action="store", type=int)
     parser.addoption("--stress", action="store", type=bool)
+    parser.addoption("--flag-types", action="store", default="ascii,utf8")
 
 
 def pytest_configure(config):
