@@ -891,7 +891,7 @@ async def _do_exploit_run(
         return False, e
 
 
-async def test_exploit_per_exploit_id(
+async def test_exploit(
     encoding,
     task_ids,
     round_id,
@@ -944,27 +944,6 @@ async def test_exploit_twice(
     raise Exception([r[1] for r in results])
 
 
-# async def test_exploit_multiplied(
-#     encoding,
-#     task_ids,
-#     round_id,
-#     exploit_id_multiplied,
-#     exploit_variants,
-#     flag_variants,
-#     service_address,
-#     checker_url,
-# ):
-#     await _test_exploit(
-#         encoding,
-#         task_ids,
-#         round_id,
-#         exploit_id_multiplied % exploit_variants,
-#         flag_variants,
-#         service_address,
-#         checker_url,
-#     )
-
-
 async def test_flagstore_exploitable(
     encoding,
     task_ids,
@@ -978,31 +957,6 @@ async def test_flagstore_exploitable(
 ):
     if flag_variants == 0:
         return
-    results = [
-        await _do_exploit_run(
-            encoding,
-            task_ids,
-            round_id,
-            exploit_id,
-            flag_id,
-            service_address,
-            checker_url,
-        )
-    ]
-    if any(r[0] for r in results):
-        return
-    raise Exception([r[1] for r in results])
-
-
-async def test_exploit_per_flag_id(
-    encoding,
-    task_ids,
-    round_id,
-    exploit_variants,
-    flag_id,
-    service_address,
-    checker_url,
-):
     results = [
         await _do_exploit_run(
             encoding,
