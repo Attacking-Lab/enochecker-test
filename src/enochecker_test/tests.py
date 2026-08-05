@@ -891,7 +891,7 @@ async def _do_exploit_run(
         return False, e
 
 
-async def test_exploit(
+async def test_exploit_per_exploit_id(
     encoding,
     task_ids,
     round_id,
@@ -944,11 +944,10 @@ async def test_exploit_twice(
     raise Exception([r[1] for r in results])
 
 
-async def test_flagstore_exploitable(
+async def test_exploit_per_flag_id(
     encoding,
     task_ids,
     round_id,
-    exploit_id,
     exploit_variants,
     flag_variants,
     flag_id,
