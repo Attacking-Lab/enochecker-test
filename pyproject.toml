@@ -47,6 +47,12 @@ typing = [
 	"mypy>=1.17.1",
 	"types-docker>=7.1.0.20250822",
 ]
+dev = [
+	{ include-group = "format" },
+	{ include-group = "lint" },
+	{ include-group = "test" },
+	{ include-group = "typing" },
+]
 
 [build-system]
 requires = ["setuptools"]
