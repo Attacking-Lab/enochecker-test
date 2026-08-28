@@ -14,6 +14,14 @@
 # packages those steps' own `--group` still need to add) come from
 # PyPI, not the private remote.
 #
+# `image`/`environment` are shared by every step below and templated
+# via YAML anchors/aliases declared in the `variables` block (`*ci_image`,
+# `<<: *uv_env`) instead of repeating them six times over -- mirrors
+# enochecker3's test.yml (`variables` isn't a Woodpecker pipeline key,
+# it's just a top-level mapping to hang the anchors off; Woodpecker
+# ignores unrecognised top-level keys, see
+# https://woodpecker-ci.org/docs/usage/advanced-yaml-syntax#anchors-aliases-and-map-merges).
+#
 # Runs once, against Python 3.14 (the .woodpecker/Dockerfile's base,
 # and the newest of this project's supported versions, 3.10-3.14)
 # rather than a PYTHON_VERSION matrix like enochecker3's test.yml --
@@ -23,12 +31,17 @@
 # rebuilding/installing N images for a Woodpecker matrix.
 #
 # The image itself is built and pushed by a separate, non-matrixed
-# workflow, .woodpecker/ci-image.yaml (see that file for why it's
+# workflow, .woodpecker/ci-image.yml (see that file for why it's
 # split out). This workflow declares a workflow-level
 # `depends_on: [ci-image]` (optional: true, so it still runs unmodified
-# when ci-image.yaml is skipped because the Dockerfile didn't change),
+# when ci-image.yml is skipped because the Dockerfile didn't change),
 # and every step below sets `pull: true` so a run that *did* rebuild
 # the image picks up the fresh tag instead of a stale cached copy.
+
+variables:
+  - &ci_image oci.atklab.cloud/enochecker-test/enochecker-test-ci:latest
+  - &uv_env
+    UV_FLAGS: "--exact --isolated --frozen"
 
 when:
   - event: [push, pull_request, manual, tag]
@@ -39,60 +52,55 @@ depends_on:
 
 steps:
   sync:
-    image: oci.atklab.cloud/enochecker-test/enochecker-test-ci:latest
+    image: *ci_image
     pull: true
     environment:
-      UV_FLAGS: "--exact --isolated --frozen"
+      <<: *uv_env
       CHECKER_PULL_TOKEN:
         from_secret: CHECKER_PULL_TOKEN
     commands:
       - git-pass -u oauth2 -p "$CHECKER_PULL_TOKEN" -U https://git.atklab.cloud -- make --trace sync
 
   format:
-    image: oci.atklab.cloud/enochecker-test/enochecker-test-ci:latest
+    image: *ci_image
     pull: true
-    environment:
-      UV_FLAGS: "--exact --isolated --frozen"
+    environment: *uv_env
     depends_on:
       - name: sync
     commands:
       - make --trace format
 
   lint:
-    image: oci.atklab.cloud/enochecker-test/enochecker-test-ci:latest
+    image: *ci_image
     pull: true
-    environment:
-      UV_FLAGS: "--exact --isolated --frozen"
+    environment: *uv_env
     depends_on:
       - name: sync
     commands:
       - make --trace lint
 
   mypy:
-    image: oci.atklab.cloud/enochecker-test/enochecker-test-ci:latest
+    image: *ci_image
     pull: true
-    environment:
-      UV_FLAGS: "--exact --isolated --frozen"
+    environment: *uv_env
     depends_on:
       - name: sync
     commands:
       - make --trace mypy
 
   test:
-    image: oci.atklab.cloud/enochecker-test/enochecker-test-ci:latest
+    image: *ci_image
     pull: true
-    environment:
-      UV_FLAGS: "--exact --isolated --frozen"
+    environment: *uv_env
     depends_on:
       - name: sync
     commands:
       - make --trace test
 
   build:
-    image: oci.atklab.cloud/enochecker-test/enochecker-test-ci:latest
+    image: *ci_image
     pull: true
-    environment:
-      UV_FLAGS: "--exact --isolated --frozen"
+    environment: *uv_env
     depends_on:
       - name: sync
     commands:

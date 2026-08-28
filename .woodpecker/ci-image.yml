@@ -1,8 +1,8 @@
 # Builds and pushes .woodpecker/Dockerfile, split into its own
-# workflow from test.yaml so it isn't tied to test.yaml's own
+# workflow from test.yml so it isn't tied to test.yml's own
 # triggers/steps -- mirrors atklab/enochecker3's
 # .woodpecker/ci-image.yml split. Only runs when the Dockerfile
-# changed (`when.path`); test.yaml declares a workflow-level
+# changed (`when.path`); test.yml declares a workflow-level
 # `depends_on: [ci-image]` (optional: true) so it still runs when this
 # workflow is skipped, and `pull: true` on its own steps so a run that
 # *did* rebuild the image picks up the fresh :latest instead of a

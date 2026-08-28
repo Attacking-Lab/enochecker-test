@@ -1,9 +1,9 @@
-# Woodpecker CI runner image for .woodpecker/test.yaml. Bundles git,
+# Woodpecker CI runner image for .woodpecker/test.yml. Bundles git,
 # make and git-pass-helper (needed to authenticate uv's fetch of the
 # private enochecker-core/enochecker3 git dependencies via
 # git.atklab.cloud) on top of a plain Python image, so a run pays for
 # this setup once, at image build time, instead of on every push.
-# Built and pushed automatically by .woodpecker/ci-image.yaml whenever
+# Built and pushed automatically by .woodpecker/ci-image.yml whenever
 # this file changes. Modelled on atklab/enochecker-cli's
 # .woodpecker/Dockerfile.
 FROM python:3.14-slim-bookworm
