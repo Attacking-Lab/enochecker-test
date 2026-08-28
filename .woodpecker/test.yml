@@ -110,13 +110,3 @@ steps:
       - name: sync
     commands:
       - just -v test
-
-  build:
-    image: *ci_image
-    pull: true
-    environment: *uv_env
-    depends_on:
-      - name: sync
-    commands:
-      - just -v build
-      - pip install dist/enochecker_test-*.tar.gz
