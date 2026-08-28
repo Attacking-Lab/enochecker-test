@@ -1,0 +1,100 @@
+# enochecker-core/enochecker3 are fetched from the private
+# git.atklab.cloud/atklab/{enochecker-core,enochecker3} repos (see
+# pyproject.toml's [tool.uv.sources]), so resolving them needs
+# credentials. Rather than every step independently wrapping its
+# `make --trace <target>` in git-pass (as this repo's single ci.yaml
+# used to, needing CHECKER_PULL_TOKEN five times over), authenticate
+# just the one `sync` step that actually touches the private remote
+# (`make sync` -> `uv sync`) -- mirrors atklab/enochecker3's
+# .woodpecker/test.yml split. format/lint/mypy/test/build then depend
+# only on sync, not on each other, so Woodpecker runs them concurrently
+# via its depends_on DAG mode, reusing the venv `sync` already
+# populated over the workspace volume shared by every step in this
+# workflow -- no credentials needed since ruff/mypy/pytest (the only
+# packages those steps' own `--group` still need to add) come from
+# PyPI, not the private remote.
+#
+# Runs once, against Python 3.14 (the .woodpecker/Dockerfile's base,
+# and the newest of this project's supported versions, 3.10-3.14)
+# rather than a PYTHON_VERSION matrix like enochecker3's test.yml --
+# .woodpecker/Dockerfile bakes that one interpreter in directly instead
+# of provisioning it per matrix value via uv, the same tradeoff this
+# repo's Dockerfile already made (see its own comment) to avoid
+# rebuilding/installing N images for a Woodpecker matrix.
+#
+# The image itself is built and pushed by a separate, non-matrixed
+# workflow, .woodpecker/ci-image.yaml (see that file for why it's
+# split out). This workflow declares a workflow-level
+# `depends_on: [ci-image]` (optional: true, so it still runs unmodified
+# when ci-image.yaml is skipped because the Dockerfile didn't change),
+# and every step below sets `pull: true` so a run that *did* rebuild
+# the image picks up the fresh tag instead of a stale cached copy.
+
+when:
+  - event: [push, pull_request, manual, tag]
+
+depends_on:
+  - name: ci-image
+    optional: true
+
+steps:
+  sync:
+    image: oci.atklab.cloud/enochecker-test/enochecker-test-ci:latest
+    pull: true
+    environment:
+      UV_FLAGS: "--exact --isolated --frozen"
+      CHECKER_PULL_TOKEN:
+        from_secret: CHECKER_PULL_TOKEN
+    commands:
+      - git-pass -u oauth2 -p "$CHECKER_PULL_TOKEN" -U https://git.atklab.cloud -- make --trace sync
+
+  format:
+    image: oci.atklab.cloud/enochecker-test/enochecker-test-ci:latest
+    pull: true
+    environment:
+      UV_FLAGS: "--exact --isolated --frozen"
+    depends_on:
+      - name: sync
+    commands:
+      - make --trace format
+
+  lint:
+    image: oci.atklab.cloud/enochecker-test/enochecker-test-ci:latest
+    pull: true
+    environment:
+      UV_FLAGS: "--exact --isolated --frozen"
+    depends_on:
+      - name: sync
+    commands:
+      - make --trace lint
+
+  mypy:
+    image: oci.atklab.cloud/enochecker-test/enochecker-test-ci:latest
+    pull: true
+    environment:
+      UV_FLAGS: "--exact --isolated --frozen"
+    depends_on:
+      - name: sync
+    commands:
+      - make --trace mypy
+
+  test:
+    image: oci.atklab.cloud/enochecker-test/enochecker-test-ci:latest
+    pull: true
+    environment:
+      UV_FLAGS: "--exact --isolated --frozen"
+    depends_on:
+      - name: sync
+    commands:
+      - make --trace test
+
+  build:
+    image: oci.atklab.cloud/enochecker-test/enochecker-test-ci:latest
+    pull: true
+    environment:
+      UV_FLAGS: "--exact --isolated --frozen"
+    depends_on:
+      - name: sync
+    commands:
+      - make --trace build
+      - pip install dist/enochecker_test-*.tar.gz
