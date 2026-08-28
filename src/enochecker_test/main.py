@@ -23,9 +23,15 @@ def run_tests(
         r = client.get(f"http://{host}:{port}/service")
     if r.status_code != 200:
         raise Exception("Failed to get /service from checker")
-    info = CheckerInfoMessage.model_validate_json(r.text)
+    try:
+        info = CheckerInfoMessage.model_validate_json(r.text)
+    except ValueError as e:
+        raise Exception(
+            "Failed to parse /service from checker. Note that exploitVariants is now "
+            "the list of flag variants targeted by each exploit, not their count."
+        ) from e
     logging.info(
-        "Testing service %s, flagVariants: %d, noiseVariants: %d, havocVariants: %d, exploitVariants: %d, testVariants: %d",
+        "Testing service %s, flagVariants: %d, noiseVariants: %d, havocVariants: %d, exploitVariants: %s, testVariants: %d",
         info.service_name,
         info.flag_variants,
         info.noise_variants,
@@ -42,7 +48,7 @@ def run_tests(
         f"--flag-variants={info.flag_variants}",
         f"--noise-variants={info.noise_variants}",
         f"--havoc-variants={info.havoc_variants}",
-        f"--exploit-variants={info.exploit_variants}",
+        "--exploit-variants=" + ",".join(str(v) for v in info.exploit_variants),
         f"--test-variants={info.test_variants}",
         f"--multiplier={multiplier}",
         f"--seed={seed}",

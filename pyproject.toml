@@ -1,6 +1,6 @@
 [project]
 name = "enochecker_test"
-version = "0.14.4"
+version = "0.15.0"
 requires-python = ">=3.10"
 description = "Library to help test checker scripts based on enochecker"
 authors = [
@@ -15,7 +15,7 @@ dependencies = [
 	"pytest>=8.2.2",
 	"pytest-asyncio>=1.3.0",
 	"httpx>=0.28.1",
-	"enochecker-core>=0.13.0",
+	"enochecker-core>=0.14.0",
 	"opentelemetry-api>=1.39.1",
 	"opentelemetry-sdk>=1.39.1",
 	"opentelemetry-exporter-otlp>=1.39.1",
@@ -39,7 +39,7 @@ lint = [
 ]
 test = [
 	"coverage>=7.10.4",
-	"enochecker3>=0.14.0",
+	"enochecker3>=0.15.0",
 	"pytest>=8.2.2",
 	"pytest-asyncio>=0.25.3"
 ]
@@ -53,6 +53,10 @@ dev = [
 	{ include-group = "test" },
 	{ include-group = "typing" },
 ]
+
+[tool.uv.sources]
+enochecker-core = { git = "https://git.atklab.cloud/atklab/enochecker-core", branch = "main" }
+enochecker3 = { git = "https://git.atklab.cloud/atklab/enochecker3", branch = "main" }
 
 [build-system]
 requires = ["setuptools"]

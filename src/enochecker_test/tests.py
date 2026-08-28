@@ -55,6 +55,16 @@ def checker_url(checker_address, checker_port):
     return f"http://{checker_address}:{checker_port}"
 
 
+def _parse_exploit_variants(option: str) -> list[int]:
+    """The flag variant each exploit targets, indexed by exploit variant id."""
+    return [int(variant) for variant in option.split(",") if variant]
+
+
+@pytest.fixture
+def exploit_variants(request) -> list[int]:
+    return _parse_exploit_variants(request.config.getoption("--exploit-variants"))
+
+
 def pytest_generate_tests(metafunc):
     global task_id_random
     global random_source
@@ -69,7 +79,9 @@ def pytest_generate_tests(metafunc):
     flag_variants: int = metafunc.config.getoption("--flag-variants")
     noise_variants: int = metafunc.config.getoption("--noise-variants")
     havoc_variants: int = metafunc.config.getoption("--havoc-variants")
-    exploit_variants: int = metafunc.config.getoption("--exploit-variants")
+    exploit_variants: list[int] = _parse_exploit_variants(
+        metafunc.config.getoption("--exploit-variants")
+    )
     test_variants: int = metafunc.config.getoption("--test-variants")
     multiplier: int = metafunc.config.getoption("--multiplier")
 
@@ -103,12 +115,10 @@ def pytest_generate_tests(metafunc):
     if "exploit_id_multiplied" in metafunc.fixturenames:
         metafunc.parametrize(
             "exploit_id_multiplied",
-            range(exploit_variants, exploit_variants * multiplier),
+            range(len(exploit_variants), len(exploit_variants) * multiplier),
         )
     if "exploit_id" in metafunc.fixturenames:
-        metafunc.parametrize("exploit_id", range(exploit_variants))
-    if "exploit_variants" in metafunc.fixturenames:
-        metafunc.parametrize("exploit_variants", [exploit_variants])
+        metafunc.parametrize("exploit_id", range(len(exploit_variants)))
 
     if "test_id" in metafunc.fixturenames:
         metafunc.parametrize("test_id", range(test_variants))
@@ -858,37 +868,31 @@ async def _do_exploit_run(
     checker_url: str,
     tries: int = 1,
 ):
-    try:
-        flag = generate_dummyflag(encoding)
-        flag_hash = hashlib.sha256(flag.encode()).hexdigest()
+    flag = generate_dummyflag(encoding)
+    flag_hash = hashlib.sha256(flag.encode()).hexdigest()
 
-        attack_info = await _test_putflag(
-            flag,
+    attack_info = await _test_putflag(
+        flag,
+        next(task_ids),
+        round_id,
+        flag_id,
+        service_address,
+        checker_url,
+    )
+    for _ in range(tries):
+        found_flag = await _test_exploit(
+            _flag_regex_for_encoding(encoding),
+            flag_hash,
+            attack_info,
             next(task_ids),
             round_id,
-            flag_id,
+            exploit_id,
             service_address,
             checker_url,
         )
-        for _ in range(tries):
-            found_flag = await _test_exploit(
-                _flag_regex_for_encoding(encoding),
-                flag_hash,
-                attack_info,
-                next(task_ids),
-                round_id,
-                exploit_id,
-                service_address,
-                checker_url,
-            )
-            if found_flag != flag:
-                return False, Exception(
-                    f"Found flag is incorrect. Expected: {flag}. Found: {found_flag}"
-                )
-
-        return True, None
-    except Exception as e:
-        return False, e
+        assert found_flag == flag, (
+            f"Found flag is incorrect. Expected: {flag}. Found: {found_flag}"
+        )
 
 
 async def test_exploit_per_exploit_id(
@@ -896,25 +900,19 @@ async def test_exploit_per_exploit_id(
     task_ids,
     round_id,
     exploit_id,
-    flag_variants,
+    exploit_variants,
     service_address,
     checker_url,
 ):
-    results = [
-        await _do_exploit_run(
-            encoding,
-            task_ids,
-            round_id,
-            exploit_id,
-            flag_id,
-            service_address,
-            checker_url,
-        )
-        for flag_id in range(flag_variants)
-    ]
-    if any(r[0] for r in results):
-        return
-    raise Exception([r[1] for r in results])
+    await _do_exploit_run(
+        encoding,
+        task_ids,
+        round_id,
+        exploit_id,
+        exploit_variants[exploit_id],
+        service_address,
+        checker_url,
+    )
 
 
 async def test_exploit_twice(
@@ -922,55 +920,28 @@ async def test_exploit_twice(
     task_ids,
     round_id,
     exploit_id,
-    flag_variants,
-    service_address,
-    checker_url: str,
-):
-    results = [
-        await _do_exploit_run(
-            encoding,
-            task_ids,
-            round_id,
-            exploit_id,
-            flag_id,
-            service_address,
-            checker_url,
-            tries=2,
-        )
-        for flag_id in range(flag_variants)
-    ]
-    if any(r[0] for r in results):
-        return
-    raise Exception([r[1] for r in results])
-
-
-async def test_exploit_per_flag_id(
-    encoding,
-    task_ids,
-    round_id,
     exploit_variants,
-    flag_variants,
-    flag_id,
     service_address,
     checker_url: str,
 ):
-    if flag_variants == 0:
-        return
-    results = [
-        await _do_exploit_run(
-            encoding,
-            task_ids,
-            round_id,
-            exploit_id,
-            flag_id,
-            service_address,
-            checker_url,
-        )
-        for exploit_id in range(exploit_variants)
-    ]
-    if any(r[0] for r in results):
-        return
-    raise Exception([r[1] for r in results])
+    await _do_exploit_run(
+        encoding,
+        task_ids,
+        round_id,
+        exploit_id,
+        exploit_variants[exploit_id],
+        service_address,
+        checker_url,
+        tries=2,
+    )
+
+
+async def test_all_flagstores_exploitable(
+    flag_variants,
+    exploit_variants,
+):
+    missing = sorted(set(range(flag_variants)) - set(exploit_variants))
+    assert not missing, f"No exploit defined for flag variant(s): {missing}"
 
 
 async def test_exploit_invalid_variant(
@@ -990,7 +961,7 @@ async def test_exploit_invalid_variant(
         None,
         next(task_ids),
         round_id,
-        exploit_variants,
+        len(exploit_variants),
         service_address,
         checker_url,
         expected_result=CheckerTaskResult.INTERNAL_ERROR,
