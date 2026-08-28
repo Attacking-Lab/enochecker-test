@@ -5,6 +5,13 @@ Automatically test services/checker using the enochecker API
 # Usage
 `enochecker_test` can be used to run tests against a checker, optionally you can specify wich tests to run e.g. `enochecker_test test_getflag[0] test_exploit` will run only the first `getflag` test and all `test_exploit` tests.
 
+Tests are also annotated with groups (`putflag`, `getflag`, `putnoise`, `getnoise`, `havoc`, `exploit`, `test`, `stress`, `misc`) via `@pytest.mark.<group>`. Select whole groups with `-g`/`--groups EXPR`, using the boolean expression syntax pytest's own `-m` flag expects (`and`/`or`/`not`/parens over the group names); `-g` maps straight onto `-m` under the hood. `testexpr` (the positional argument, mapped to pytest's `-k`) still selects/deselects individual tests by name the same way it always has. If both are given, a test must match both to run:
+
+```
+$ enochecker_test --groups "putflag or getflag" ...
+$ enochecker_test --groups "not exploit" "not test_getflag_twice" ...
+```
+
 ```
 usage: enochecker_test [-h] [-a CHECKER_ADDRESS] [-p {1..65535}] [-A SERVICE_ADDRESS] [testexpr]
 

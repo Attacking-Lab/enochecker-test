@@ -9,6 +9,20 @@ from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
 from opentelemetry.trace import StatusCode, get_current_span
 
+# Groups tests are annotated with via @pytest.mark.<group>, one per enochecker
+# method plus "stress" and "misc" (tests that don't map to a single method).
+GROUP_DESCRIPTIONS = {
+    "putflag": "tests exercising the checker's putflag method",
+    "getflag": "tests exercising the checker's getflag method",
+    "putnoise": "tests exercising the checker's putnoise method",
+    "getnoise": "tests exercising the checker's getnoise method",
+    "havoc": "tests exercising the checker's havoc method",
+    "exploit": "tests exercising the checker's exploit method",
+    "test": "tests exercising the checker's test method",
+    "stress": "run stress tests",
+    "misc": "tests that don't map to a single checker method",
+}
+
 
 def pytest_addoption(parser):
     parser.addoption("--checker-address", action="store", type=str)
@@ -28,7 +42,8 @@ def pytest_addoption(parser):
 
 
 def pytest_configure(config):
-    config.addinivalue_line("markers", "stress: run stress tests")
+    for group, description in GROUP_DESCRIPTIONS.items():
+        config.addinivalue_line("markers", f"{group}: {description}")
 
     # enable tracing if OTEL_EXPORTER_OTLP_ENDPOINT is set
     if otlp_endpoint := os.environ.get("OTEL_EXPORTER_OTLP_ENDPOINT"):
@@ -61,13 +76,11 @@ def setup_telemetry(request):
 
 
 def pytest_collection_modifyitems(config, items):
-    if config.getoption("--stress"):
-        return
-
-    skip_stress = pytest.mark.skip(reason="need --stress option to run")
-    for item in items:
-        if "stress" in item.keywords:
-            item.add_marker(skip_stress)
+    if not config.getoption("--stress"):
+        skip_stress = pytest.mark.skip(reason="need --stress option to run")
+        for item in items:
+            if "stress" in item.keywords:
+                item.add_marker(skip_stress)
 
 
 @pytest.hookimpl(hookwrapper=True)

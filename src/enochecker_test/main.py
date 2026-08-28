@@ -19,6 +19,7 @@ def run_tests(
     stress: bool,
     flag_types: str = "ascii,utf8",
     exploit_timeout: Optional[int] = None,
+    group_expr: Optional[str] = None,
 ):
     transport = httpx.HTTPTransport(retries=10)
     with httpx.Client(transport=transport) as client:
@@ -64,6 +65,9 @@ def run_tests(
     test_args.append(f"--flag-types={flag_types}")
     if exploit_timeout is not None:
         test_args.append(f"--exploit-timeout={exploit_timeout}")
+    if group_expr:
+        test_args.append("-m")
+        test_args.append(group_expr)
 
     if test_expr:
         test_args.append("-k")
@@ -87,6 +91,14 @@ Assuming that 172.20.0.1 is the ip address of the gateway of the network of the
 service's docker container as obtained by e.g:
 
     $ docker network inspect service_default | jq ".[].IPAM.Config[].Gateway"
+
+By default all tests run. testexpr (pytest's -k) selects/deselects individual
+tests by name; --groups (pytest's -m) selects/deselects whole groups by their
+@pytest.mark.<group> marker. Both take a boolean expression (and/or/not/
+parens) and, if both are given, a test must match both:
+
+    $ enochecker_test --groups "putflag or getflag" ...
+    $ enochecker_test --groups "not exploit" "not test_getflag_twice" ...
 """,
     )
     parser.add_argument(
@@ -155,6 +167,17 @@ service's docker container as obtained by e.g:
         default=os.environ.get("ENOCHECKER_EXPLOIT_TIMEOUT"),
     )
     parser.add_argument(
+        "-g",
+        "--groups",
+        dest="group_expr",
+        metavar="EXPR",
+        help="Select tests by group in the syntax expected by pytest's -m flag, "
+        "e.g. 'putflag or getflag' or 'not exploit'. Groups: putflag, getflag, "
+        "putnoise, getnoise, havoc, exploit, test, stress, misc. Combines with "
+        "testexpr: a test must match both if both are given. If no expr is "
+        "specified, no group filtering is applied.",
+    )
+    parser.add_argument(
         "testexpr",
         help="Specify the tests that should be run in the syntax expected by pytests -k flag, e.g. 'test_getflag' or 'not exploit'. If no expr is specified, all tests will be run.",
         nargs="?",
@@ -197,4 +220,5 @@ service's docker container as obtained by e.g:
         args.stress,
         args.flag_types,
         args.exploit_timeout,
+        args.group_expr,
     )
