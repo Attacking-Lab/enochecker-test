@@ -1,0 +1,112 @@
+# Builds a Woodpecker CI runner image (.woodpecker/Dockerfile) and reuses
+# it across format/lint/mypy/test/build instead of installing uv/make/
+# git-pass-helper fresh in every step -- mirrors atklab/enochecker-cli's
+# .woodpecker/ci.yaml split. Runs once, against Python 3.14 (the
+# .woodpecker/Dockerfile's base, and the newest of this project's
+# supported versions, 3.10-3.14) instead of the previous PYTHON_VERSION
+# matrix -- Woodpecker has no lightweight way to reuse one image across a
+# version matrix without either building N images or installing N Python
+# interpreters into one, the same one-version tradeoff enochecker-cli
+# made for the same reason.
+#
+# enochecker-core/enochecker3 are fetched from the private
+# git.atklab.cloud/atklab/{enochecker-core,enochecker3} repos (see
+# pyproject.toml's [tool.uv.sources]). Every step below needs the
+# CHECKER_PULL_TOKEN secret, passed through git-pass-helper (baked into
+# the CI image) to authenticate that fetch.
+#
+# `ci-image` builds and pushes .woodpecker/Dockerfile itself and only
+# runs when that file changed (`when.path`); format/lint/mypy/test/build
+# depend on it with `optional: true` so they still run when it's skipped,
+# and set `pull: true` so a pipeline that did rebuild the image picks up
+# the fresh `:latest` instead of a stale cached copy.
+#
+# Uses the woodpeckerci/plugin-docker-buildx plugin (rather than
+# hand-rolled docker:dind build+push commands) to build+push the CI
+# image, matching atklab/enochecker-cli/atklab/gameserver -- it
+# authenticates itself via explicit REGISTRY_USERNAME/REGISTRY_PASSWORD
+# secrets rather than a project-level registry setting.
+
+when:
+  - event: [push, pull_request, manual, tag]
+
+steps:
+  ci-image:
+    image: woodpeckerci/plugin-docker-buildx
+    settings:
+      registry: oci.atklab.cloud
+      repo: oci.atklab.cloud/enochecker-test/enochecker-test-ci
+      dockerfile: .woodpecker/Dockerfile
+      tags: latest
+      username:
+        from_secret: REGISTRY_USERNAME
+      password:
+        from_secret: REGISTRY_PASSWORD
+    when:
+      - path: .woodpecker/Dockerfile
+
+  format:
+    image: oci.atklab.cloud/enochecker-test/enochecker-test-ci:latest
+    pull: true
+    environment:
+      UV_FLAGS: "--exact --isolated --frozen"
+      CHECKER_PULL_TOKEN:
+        from_secret: CHECKER_PULL_TOKEN
+    depends_on:
+      - name: ci-image
+        optional: true
+    commands:
+      - git-pass -u oauth2 -p "$CHECKER_PULL_TOKEN" -U https://git.atklab.cloud -- make --trace format
+
+  lint:
+    image: oci.atklab.cloud/enochecker-test/enochecker-test-ci:latest
+    pull: true
+    environment:
+      UV_FLAGS: "--exact --isolated --frozen"
+      CHECKER_PULL_TOKEN:
+        from_secret: CHECKER_PULL_TOKEN
+    depends_on:
+      - name: ci-image
+        optional: true
+    commands:
+      - git-pass -u oauth2 -p "$CHECKER_PULL_TOKEN" -U https://git.atklab.cloud -- make --trace lint
+
+  mypy:
+    image: oci.atklab.cloud/enochecker-test/enochecker-test-ci:latest
+    pull: true
+    environment:
+      UV_FLAGS: "--exact --isolated --frozen"
+      CHECKER_PULL_TOKEN:
+        from_secret: CHECKER_PULL_TOKEN
+    depends_on:
+      - name: ci-image
+        optional: true
+    commands:
+      - git-pass -u oauth2 -p "$CHECKER_PULL_TOKEN" -U https://git.atklab.cloud -- make --trace mypy
+
+  test:
+    image: oci.atklab.cloud/enochecker-test/enochecker-test-ci:latest
+    pull: true
+    environment:
+      UV_FLAGS: "--exact --isolated --frozen"
+      CHECKER_PULL_TOKEN:
+        from_secret: CHECKER_PULL_TOKEN
+    depends_on:
+      - name: ci-image
+        optional: true
+    commands:
+      - git-pass -u oauth2 -p "$CHECKER_PULL_TOKEN" -U https://git.atklab.cloud -- make --trace test
+
+  build:
+    image: oci.atklab.cloud/enochecker-test/enochecker-test-ci:latest
+    pull: true
+    environment:
+      UV_FLAGS: "--exact --isolated --frozen"
+      CHECKER_PULL_TOKEN:
+        from_secret: CHECKER_PULL_TOKEN
+    depends_on:
+      - name: ci-image
+        optional: true
+    commands:
+      - git-pass -u oauth2 -p "$CHECKER_PULL_TOKEN" -U https://git.atklab.cloud -- make --trace build
+      - pip install dist/enochecker_test-*.tar.gz
