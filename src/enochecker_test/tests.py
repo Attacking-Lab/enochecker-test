@@ -22,6 +22,9 @@ FLAG_REGEX_UTF8 = r"🥺[A-Za-z0-9+\/=]{48}🥺🥺"
 REQUEST_TIMEOUT = 10
 TEST_REQUEST_TIMEOUT = 3600
 CHAIN_ID_PREFIX = secrets.token_hex(20)
+# ".invalid" is reserved by RFC 2606 to never resolve, so this reliably
+# simulates an unreachable service without depending on network topology.
+OFFLINE_ADDRESS = "offline.invalid"
 
 random_source = Random
 task_id_random = random_source()
@@ -477,6 +480,19 @@ async def test_putflag_invalid_variant(
     )
 
 
+async def test_putflag_offline(encoding, task_ids, round_id, flag_id, checker_url):
+    flag = generate_dummyflag(encoding)
+    await _test_putflag(
+        flag,
+        next(task_ids),
+        round_id,
+        flag_id,
+        OFFLINE_ADDRESS,
+        checker_url,
+        expected_result=CheckerTaskResult.OFFLINE,
+    )
+
+
 async def test_getflag(
     encoding, task_ids, round_id, flag_id, service_address, checker_url
 ):
@@ -655,6 +671,29 @@ async def test_getflag_invalid_variant(
     )
 
 
+async def test_getflag_offline(
+    encoding, task_ids, round_id, flag_id, service_address, checker_url
+):
+    flag = generate_dummyflag(encoding)
+    await _test_putflag(
+        flag,
+        next(task_ids),
+        round_id,
+        flag_id,
+        service_address,
+        checker_url,
+    )
+    await _test_getflag(
+        flag,
+        next(task_ids),
+        round_id,
+        flag_id,
+        OFFLINE_ADDRESS,
+        checker_url,
+        expected_result=CheckerTaskResult.OFFLINE,
+    )
+
+
 async def test_putnoise(round_id, task_ids, noise_id, service_address, checker_url):
     await _test_putnoise(
         next(task_ids),
@@ -693,6 +732,17 @@ async def test_putnoise_invalid_variant(
         service_address,
         checker_url,
         expected_result=CheckerTaskResult.INTERNAL_ERROR,
+    )
+
+
+async def test_putnoise_offline(task_ids, round_id, noise_id, checker_url):
+    await _test_putnoise(
+        next(task_ids),
+        round_id,
+        noise_id,
+        OFFLINE_ADDRESS,
+        checker_url,
+        expected_result=CheckerTaskResult.OFFLINE,
     )
 
 
@@ -827,6 +877,26 @@ async def test_getnoise_invalid_variant(
     )
 
 
+async def test_getnoise_offline(
+    task_ids, round_id, noise_id, service_address, checker_url
+):
+    await _test_putnoise(
+        next(task_ids),
+        round_id,
+        noise_id,
+        service_address,
+        checker_url,
+    )
+    await _test_getnoise(
+        next(task_ids),
+        round_id,
+        noise_id,
+        OFFLINE_ADDRESS,
+        checker_url,
+        expected_result=CheckerTaskResult.OFFLINE,
+    )
+
+
 async def test_havoc(task_ids, round_id, havoc_id, service_address, checker_url):
     await _test_havoc(
         next(task_ids),
@@ -865,6 +935,17 @@ async def test_havoc_invalid_variant(
         service_address,
         checker_url,
         expected_result=CheckerTaskResult.INTERNAL_ERROR,
+    )
+
+
+async def test_havoc_offline(task_ids, round_id, havoc_id, checker_url):
+    await _test_havoc(
+        next(task_ids),
+        round_id,
+        havoc_id,
+        OFFLINE_ADDRESS,
+        checker_url,
+        expected_result=CheckerTaskResult.OFFLINE,
     )
 
 
