@@ -9,6 +9,20 @@ from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
 from opentelemetry.trace import StatusCode, get_current_span
 
+# Groups tests are annotated with via @pytest.mark.<group>, one per enochecker
+# method plus "stress" and "misc" (tests that don't map to a single method).
+GROUP_DESCRIPTIONS = {
+    "putflag": "tests exercising the checker's putflag method",
+    "getflag": "tests exercising the checker's getflag method",
+    "putnoise": "tests exercising the checker's putnoise method",
+    "getnoise": "tests exercising the checker's getnoise method",
+    "havoc": "tests exercising the checker's havoc method",
+    "exploit": "tests exercising the checker's exploit method",
+    "test": "tests exercising the checker's test method",
+    "stress": "run stress tests",
+    "misc": "tests that don't map to a single checker method",
+}
+
 
 def pytest_addoption(parser):
     parser.addoption("--checker-address", action="store", type=str)
@@ -25,10 +39,53 @@ def pytest_addoption(parser):
     parser.addoption("--seed", action="store", type=int)
     parser.addoption("--stress", action="store", type=bool)
     parser.addoption("--flag-types", action="store", default="ascii,utf8")
+    parser.addoption(
+        "--with-group",
+        action="append",
+        default=[],
+        metavar="GROUP",
+        help="Add all tests in GROUP to the selection (repeatable, comma-separated allowed)",
+    )
+    parser.addoption(
+        "--without-group",
+        action="append",
+        default=[],
+        metavar="GROUP",
+        help="Remove all tests in GROUP from the selection (repeatable, comma-separated allowed)",
+    )
+    parser.addoption(
+        "--with",
+        dest="with_tests",
+        action="append",
+        default=[],
+        metavar="TEST",
+        help="Add TEST (by its function name) to the selection (repeatable, comma-separated allowed)",
+    )
+    parser.addoption(
+        "--without",
+        dest="without_tests",
+        action="append",
+        default=[],
+        metavar="TEST",
+        help="Remove TEST (by its function name) from the selection (repeatable, comma-separated allowed)",
+    )
+    parser.addoption(
+        "--nullset",
+        action="store_true",
+        default=False,
+        help="Start with no tests selected instead of all of them; use --with/--with-group to opt tests back in",
+    )
+    parser.addoption(
+        "--all",
+        action="store_true",
+        default=False,
+        help="Select all tests, overriding --nullset",
+    )
 
 
 def pytest_configure(config):
-    config.addinivalue_line("markers", "stress: run stress tests")
+    for group, description in GROUP_DESCRIPTIONS.items():
+        config.addinivalue_line("markers", f"{group}: {description}")
 
     # enable tracing if OTEL_EXPORTER_OTLP_ENDPOINT is set
     if otlp_endpoint := os.environ.get("OTEL_EXPORTER_OTLP_ENDPOINT"):
@@ -61,13 +118,66 @@ def setup_telemetry(request):
 
 
 def pytest_collection_modifyitems(config, items):
-    if config.getoption("--stress"):
+    if not config.getoption("--stress"):
+        skip_stress = pytest.mark.skip(reason="need --stress option to run")
+        for item in items:
+            if "stress" in item.keywords:
+                item.add_marker(skip_stress)
+
+    _apply_test_selection(config, items)
+
+
+def _split_csv(values):
+    result: list[str] = []
+    for value in values:
+        result.extend(part.strip() for part in value.split(",") if part.strip())
+    return result
+
+
+def _item_groups(item):
+    return {mark.name for mark in item.iter_markers() if mark.name in GROUP_DESCRIPTIONS}
+
+
+def _item_test_name(item):
+    return getattr(item, "originalname", None) or item.name.split("[")[0]
+
+
+def _apply_test_selection(config, items):
+    with_groups = set(_split_csv(config.getoption("with_group")))
+    without_groups = set(_split_csv(config.getoption("without_group")))
+    with_tests = set(_split_csv(config.getoption("with_tests")))
+    without_tests = set(_split_csv(config.getoption("without_tests")))
+    nullset = config.getoption("nullset")
+    select_all = config.getoption("all")
+
+    if not (
+        with_groups or without_groups or with_tests or without_tests or nullset or select_all
+    ):
         return
 
-    skip_stress = pytest.mark.skip(reason="need --stress option to run")
-    for item in items:
-        if "stress" in item.keywords:
-            item.add_marker(skip_stress)
+    if select_all:
+        selected = set(items)
+    elif nullset:
+        selected = set()
+    else:
+        selected = set(items)
+
+    if with_groups or with_tests:
+        for item in items:
+            if item in selected:
+                continue
+            if _item_groups(item) & with_groups or _item_test_name(item) in with_tests:
+                selected.add(item)
+
+    if without_groups or without_tests:
+        for item in list(selected):
+            if _item_groups(item) & without_groups or _item_test_name(item) in without_tests:
+                selected.discard(item)
+
+    deselected = [item for item in items if item not in selected]
+    if deselected:
+        config.hook.pytest_deselected(items=deselected)
+    items[:] = [item for item in items if item in selected]
 
 
 @pytest.hookimpl(hookwrapper=True)

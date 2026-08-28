@@ -19,6 +19,12 @@ def run_tests(
     stress: bool,
     flag_types: str = "ascii,utf8",
     exploit_timeout: Optional[int] = None,
+    with_group: Optional[list] = None,
+    without_group: Optional[list] = None,
+    with_tests: Optional[list] = None,
+    without_tests: Optional[list] = None,
+    nullset: bool = False,
+    all_tests: bool = False,
 ):
     transport = httpx.HTTPTransport(retries=10)
     with httpx.Client(transport=transport) as client:
@@ -64,6 +70,18 @@ def run_tests(
     test_args.append(f"--flag-types={flag_types}")
     if exploit_timeout is not None:
         test_args.append(f"--exploit-timeout={exploit_timeout}")
+    for group in with_group or []:
+        test_args.append(f"--with-group={group}")
+    for group in without_group or []:
+        test_args.append(f"--without-group={group}")
+    for name in with_tests or []:
+        test_args.append(f"--with={name}")
+    for name in without_tests or []:
+        test_args.append(f"--without={name}")
+    if nullset:
+        test_args.append("--nullset")
+    if all_tests:
+        test_args.append("--all")
 
     if test_expr:
         test_args.append("-k")
@@ -87,6 +105,13 @@ Assuming that 172.20.0.1 is the ip address of the gateway of the network of the
 service's docker container as obtained by e.g:
 
     $ docker network inspect service_default | jq ".[].IPAM.Config[].Gateway"
+
+By default all tests run. --nullset flips that to none, and --with/--with-group
+add tests back in; --without/--without-group remove tests and win over --with/
+--with-group/--all. --all selects everything, overriding --nullset:
+
+    $ enochecker_test --nullset --with-group putflag --with-group getflag ...
+    $ enochecker_test --without-group exploit --without test_getflag_twice ...
 """,
     )
     parser.add_argument(
@@ -155,6 +180,49 @@ service's docker container as obtained by e.g:
         default=os.environ.get("ENOCHECKER_EXPLOIT_TIMEOUT"),
     )
     parser.add_argument(
+        "--with-group",
+        action="append",
+        metavar="GROUP",
+        help="Add all tests in GROUP (e.g. 'putflag', 'exploit', 'stress') to the "
+        "selection. Repeatable, comma-separated allowed. Groups: putflag, getflag, "
+        "putnoise, getnoise, havoc, exploit, test, stress, misc",
+    )
+    parser.add_argument(
+        "--without-group",
+        action="append",
+        metavar="GROUP",
+        help="Remove all tests in GROUP from the selection. Repeatable, "
+        "comma-separated allowed. Takes precedence over --with/--with-group/--all",
+    )
+    parser.add_argument(
+        "--with",
+        dest="with_tests",
+        action="append",
+        metavar="TEST",
+        help="Add TEST (by its function name, e.g. 'test_getflag_twice') to the "
+        "selection. Repeatable, comma-separated allowed",
+    )
+    parser.add_argument(
+        "--without",
+        dest="without_tests",
+        action="append",
+        metavar="TEST",
+        help="Remove TEST (by its function name) from the selection. Repeatable, "
+        "comma-separated allowed. Takes precedence over --with/--with-group/--all",
+    )
+    parser.add_argument(
+        "--nullset",
+        action="store_true",
+        help="Start with no tests selected instead of all of them; use --with/"
+        "--with-group to opt tests back in",
+    )
+    parser.add_argument(
+        "--all",
+        dest="all_tests",
+        action="store_true",
+        help="Select all tests, overriding --nullset",
+    )
+    parser.add_argument(
         "testexpr",
         help="Specify the tests that should be run in the syntax expected by pytests -k flag, e.g. 'test_getflag' or 'not exploit'. If no expr is specified, all tests will be run.",
         nargs="?",
@@ -197,4 +265,10 @@ service's docker container as obtained by e.g:
         args.stress,
         args.flag_types,
         args.exploit_timeout,
+        args.with_group,
+        args.without_group,
+        args.with_tests,
+        args.without_tests,
+        args.nullset,
+        args.all_tests,
     )

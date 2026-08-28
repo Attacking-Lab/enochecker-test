@@ -425,6 +425,7 @@ async def _test_test(
     await _execute_request(request_message, checker_url, expected_result, client)
 
 
+@pytest.mark.putflag
 async def test_putflag(
     encoding, task_ids, round_id, flag_id, service_address, checker_url
 ):
@@ -439,6 +440,7 @@ async def test_putflag(
     )
 
 
+@pytest.mark.putflag
 async def test_putflag_multiplied(
     encoding,
     task_ids,
@@ -460,6 +462,7 @@ async def test_putflag_multiplied(
     )
 
 
+@pytest.mark.putflag
 async def test_putflag_invalid_variant(
     encoding,
     task_ids,
@@ -480,6 +483,7 @@ async def test_putflag_invalid_variant(
     )
 
 
+@pytest.mark.putflag
 async def test_putflag_offline(encoding, task_ids, round_id, flag_id, checker_url):
     flag = generate_dummyflag(encoding)
     await _test_putflag(
@@ -493,6 +497,7 @@ async def test_putflag_offline(encoding, task_ids, round_id, flag_id, checker_ur
     )
 
 
+@pytest.mark.getflag
 async def test_getflag(
     encoding, task_ids, round_id, flag_id, service_address, checker_url
 ):
@@ -515,6 +520,7 @@ async def test_getflag(
     )
 
 
+@pytest.mark.getflag
 async def test_getflag_after_second_putflag_with_same_variant_id(
     encoding,
     task_ids,
@@ -552,6 +558,7 @@ async def test_getflag_after_second_putflag_with_same_variant_id(
     )
 
 
+@pytest.mark.getflag
 async def test_getflag_twice(
     encoding, task_ids, round_id, flag_id, service_address, checker_url
 ):
@@ -582,6 +589,7 @@ async def test_getflag_twice(
     )
 
 
+@pytest.mark.getflag
 async def test_getflag_wrong_flag(
     encoding, task_ids, round_id, flag_id, service_address, checker_url
 ):
@@ -606,6 +614,7 @@ async def test_getflag_wrong_flag(
     )
 
 
+@pytest.mark.getflag
 async def test_getflag_without_putflag(
     encoding, task_ids, round_id, flag_id, service_address, checker_url
 ):
@@ -621,6 +630,7 @@ async def test_getflag_without_putflag(
     )
 
 
+@pytest.mark.getflag
 async def test_getflag_multiplied(
     encoding,
     task_ids,
@@ -651,6 +661,7 @@ async def test_getflag_multiplied(
     )
 
 
+@pytest.mark.getflag
 async def test_getflag_invalid_variant(
     encoding,
     task_ids,
@@ -671,6 +682,7 @@ async def test_getflag_invalid_variant(
     )
 
 
+@pytest.mark.getflag
 async def test_getflag_offline(
     encoding, task_ids, round_id, flag_id, service_address, checker_url
 ):
@@ -694,6 +706,7 @@ async def test_getflag_offline(
     )
 
 
+@pytest.mark.putnoise
 async def test_putnoise(round_id, task_ids, noise_id, service_address, checker_url):
     await _test_putnoise(
         next(task_ids),
@@ -704,6 +717,7 @@ async def test_putnoise(round_id, task_ids, noise_id, service_address, checker_u
     )
 
 
+@pytest.mark.putnoise
 async def test_putnoise_multiplied(
     task_ids,
     round_id,
@@ -722,6 +736,7 @@ async def test_putnoise_multiplied(
     )
 
 
+@pytest.mark.putnoise
 async def test_putnoise_invalid_variant(
     task_ids, round_id, noise_variants, service_address, checker_url
 ):
@@ -735,6 +750,7 @@ async def test_putnoise_invalid_variant(
     )
 
 
+@pytest.mark.putnoise
 async def test_putnoise_offline(task_ids, round_id, noise_id, checker_url):
     await _test_putnoise(
         next(task_ids),
@@ -746,6 +762,7 @@ async def test_putnoise_offline(task_ids, round_id, noise_id, checker_url):
     )
 
 
+@pytest.mark.getnoise
 async def test_getnoise(task_ids, round_id, noise_id, service_address, checker_url):
     await _test_putnoise(
         next(task_ids),
@@ -763,6 +780,7 @@ async def test_getnoise(task_ids, round_id, noise_id, service_address, checker_u
     )
 
 
+@pytest.mark.getnoise
 async def test_getnoise_after_second_putnoise_with_same_variant_id(
     task_ids,
     round_id,
@@ -795,6 +813,7 @@ async def test_getnoise_after_second_putnoise_with_same_variant_id(
     )
 
 
+@pytest.mark.getnoise
 async def test_getnoise_twice(
     task_ids, round_id, noise_id, service_address, checker_url
 ):
@@ -821,6 +840,7 @@ async def test_getnoise_twice(
     )
 
 
+@pytest.mark.getnoise
 async def test_getnoise_without_putnoise(
     task_ids, round_id, noise_id, service_address, checker_url
 ):
@@ -834,6 +854,7 @@ async def test_getnoise_without_putnoise(
     )
 
 
+@pytest.mark.getnoise
 async def test_getnoise_multiplied(
     task_ids,
     round_id,
@@ -860,6 +881,7 @@ async def test_getnoise_multiplied(
     )
 
 
+@pytest.mark.getnoise
 async def test_getnoise_invalid_variant(
     task_ids: TaskIdFactory,
     round_id: int,
@@ -877,6 +899,7 @@ async def test_getnoise_invalid_variant(
     )
 
 
+@pytest.mark.getnoise
 async def test_getnoise_offline(
     task_ids, round_id, noise_id, service_address, checker_url
 ):
@@ -897,6 +920,7 @@ async def test_getnoise_offline(
     )
 
 
+@pytest.mark.havoc
 async def test_havoc(task_ids, round_id, havoc_id, service_address, checker_url):
     await _test_havoc(
         next(task_ids),
@@ -907,6 +931,7 @@ async def test_havoc(task_ids, round_id, havoc_id, service_address, checker_url)
     )
 
 
+@pytest.mark.havoc
 async def test_havoc_multiplied(
     task_ids: TaskIdFactory,
     round_id: int,
@@ -925,6 +950,7 @@ async def test_havoc_multiplied(
     )
 
 
+@pytest.mark.havoc
 async def test_havoc_invalid_variant(
     task_ids, round_id, havoc_variants, service_address, checker_url
 ):
@@ -938,6 +964,7 @@ async def test_havoc_invalid_variant(
     )
 
 
+@pytest.mark.havoc
 async def test_havoc_offline(task_ids, round_id, havoc_id, checker_url):
     await _test_havoc(
         next(task_ids),
@@ -988,6 +1015,7 @@ async def _do_exploit_run(
         )
 
 
+@pytest.mark.exploit
 async def test_exploit_per_exploit_id(
     encoding,
     task_ids,
@@ -1010,6 +1038,7 @@ async def test_exploit_per_exploit_id(
     )
 
 
+@pytest.mark.exploit
 async def test_exploit_twice(
     encoding,
     task_ids,
@@ -1033,6 +1062,7 @@ async def test_exploit_twice(
     )
 
 
+@pytest.mark.exploit
 async def test_all_flagstores_exploitable(
     flag_variants,
     exploit_variants,
@@ -1041,6 +1071,7 @@ async def test_all_flagstores_exploitable(
     assert not missing, f"No exploit defined for flag variant(s): {missing}"
 
 
+@pytest.mark.exploit
 async def test_exploit_invalid_variant(
     encoding,
     task_ids,
@@ -1065,6 +1096,7 @@ async def test_exploit_invalid_variant(
     )
 
 
+@pytest.mark.misc
 async def test_checker_info_message_case(
     checker_url,
 ):
@@ -1082,6 +1114,7 @@ async def test_checker_info_message_case(
     assert r.json() == info_message.model_dump(by_alias=True)
 
 
+@pytest.mark.test
 async def test_test(task_ids, round_id, test_id, service_address, checker_url):
     await _test_test(
         next(task_ids),
