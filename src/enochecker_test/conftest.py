@@ -135,7 +135,9 @@ def _split_csv(values):
 
 
 def _item_groups(item):
-    return {mark.name for mark in item.iter_markers() if mark.name in GROUP_DESCRIPTIONS}
+    return {
+        mark.name for mark in item.iter_markers() if mark.name in GROUP_DESCRIPTIONS
+    }
 
 
 def _item_test_name(item):
@@ -151,7 +153,12 @@ def _apply_test_selection(config, items):
     select_all = config.getoption("all")
 
     if not (
-        with_groups or without_groups or with_tests or without_tests or nullset or select_all
+        with_groups
+        or without_groups
+        or with_tests
+        or without_tests
+        or nullset
+        or select_all
     ):
         return
 
@@ -171,7 +178,10 @@ def _apply_test_selection(config, items):
 
     if without_groups or without_tests:
         for item in list(selected):
-            if _item_groups(item) & without_groups or _item_test_name(item) in without_tests:
+            if (
+                _item_groups(item) & without_groups
+                or _item_test_name(item) in without_tests
+            ):
                 selected.discard(item)
 
     deselected = [item for item in items if item not in selected]
