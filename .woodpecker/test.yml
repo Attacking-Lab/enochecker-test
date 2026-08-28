@@ -2,10 +2,10 @@
 # git.atklab.cloud/atklab/{enochecker-core,enochecker3} repos (see
 # pyproject.toml's [tool.uv.sources]), so resolving them needs
 # credentials. Rather than every step independently wrapping its
-# `make --trace <target>` in git-pass (as this repo's single ci.yaml
+# `just -v <target>` in git-pass (as this repo's single ci.yaml
 # used to, needing CHECKER_PULL_TOKEN five times over), authenticate
 # just the one `sync` step that actually touches the private remote
-# (`make sync` -> `uv sync`) -- mirrors atklab/enochecker3's
+# (`just sync` -> `uv sync`) -- mirrors atklab/enochecker3's
 # .woodpecker/test.yml split. format/lint/mypy/test/build then depend
 # only on sync, not on each other, so Woodpecker runs them concurrently
 # via its depends_on DAG mode, reusing the venv `sync` already
@@ -73,7 +73,7 @@ steps:
       CHECKER_PULL_TOKEN:
         from_secret: CHECKER_PULL_TOKEN
     commands:
-      - git-pass -u oauth2 -p "$CHECKER_PULL_TOKEN" -U https://git.atklab.cloud -- make --trace sync
+      - git-pass -u oauth2 -p "$CHECKER_PULL_TOKEN" -U https://git.atklab.cloud -- just -v sync
 
   format:
     image: *ci_image
@@ -82,7 +82,7 @@ steps:
     depends_on:
       - name: sync
     commands:
-      - make --trace format
+      - just -v format
 
   lint:
     image: *ci_image
@@ -91,7 +91,7 @@ steps:
     depends_on:
       - name: sync
     commands:
-      - make --trace lint
+      - just -v lint
 
   mypy:
     image: *ci_image
@@ -100,7 +100,7 @@ steps:
     depends_on:
       - name: sync
     commands:
-      - make --trace mypy
+      - just -v mypy
 
   test:
     image: *ci_image
@@ -109,7 +109,7 @@ steps:
     depends_on:
       - name: sync
     commands:
-      - make --trace test
+      - just -v test
 
   build:
     image: *ci_image
@@ -118,5 +118,5 @@ steps:
     depends_on:
       - name: sync
     commands:
-      - make --trace build
+      - just -v build
       - pip install dist/enochecker_test-*.tar.gz
