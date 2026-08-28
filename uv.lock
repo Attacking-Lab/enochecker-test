@@ -264,19 +264,15 @@ wheels = [
 
 [[package]]
 name = "enochecker-core"
-version = "0.13.0"
-source = { registry = "https://pypi.org/simple" }
+version = "0.14.0"
+source = { git = "https://git.atklab.cloud/atklab/enochecker-core?branch=main#1e524b6c214ae5bbc126a24d4be62e16acb8a42e" }
 dependencies = [
     { name = "pydantic" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/9a/b5/3f84bd6ec1af2e9ec309e87f62427d42cf0d0488b4f3961953d960543f9c/enochecker_core-0.13.0.tar.gz", hash = "sha256:03f59c35ca74f413577e0be6d51dfc2137e8939307b54c0106c86df17c2dbc08", size = 3477, upload-time = "2026-02-01T14:55:28.312Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/ff/31/47f6687039fc27d25e6c7d67e37ec0dc60af2273b4f43cc6e5c2e2bdd36e/enochecker_core-0.13.0-py3-none-any.whl", hash = "sha256:ec70051af53f6bdd44b6aacd387798effa4b42275a87f545a7723f25fdec9f5f", size = 3126, upload-time = "2026-02-01T14:55:27.553Z" },
 ]
 
 [[package]]
 name = "enochecker-test"
-version = "0.14.4"
+version = "0.15.0"
 source = { editable = "." }
 dependencies = [
     { name = "docker" },
@@ -321,7 +317,7 @@ typing = [
 [package.metadata]
 requires-dist = [
     { name = "docker", specifier = ">=7.1.0" },
-    { name = "enochecker-core", specifier = ">=0.13.0" },
+    { name = "enochecker-core", git = "https://git.atklab.cloud/atklab/enochecker-core?branch=main" },
     { name = "httpx", specifier = ">=0.28.1" },
     { name = "jsons", specifier = "~=1.6.3" },
     { name = "opentelemetry-api", specifier = ">=1.39.1" },
@@ -335,7 +331,7 @@ requires-dist = [
 [package.metadata.requires-dev]
 dev = [
     { name = "coverage", specifier = ">=7.10.4" },
-    { name = "enochecker3", specifier = ">=0.14.0" },
+    { name = "enochecker3", git = "https://git.atklab.cloud/atklab/enochecker3?branch=main" },
     { name = "mypy", specifier = ">=1.17.1" },
     { name = "pytest", specifier = ">=8.2.2" },
     { name = "pytest-asyncio", specifier = ">=0.25.3" },
@@ -346,7 +342,7 @@ format = [{ name = "ruff", specifier = ">=0.12.9" }]
 lint = [{ name = "ruff", specifier = ">=0.12.9" }]
 test = [
     { name = "coverage", specifier = ">=7.10.4" },
-    { name = "enochecker3", specifier = ">=0.14.0" },
+    { name = "enochecker3", git = "https://git.atklab.cloud/atklab/enochecker3?branch=main" },
     { name = "pytest", specifier = ">=8.2.2" },
     { name = "pytest-asyncio", specifier = ">=0.25.3" },
 ]
@@ -357,8 +353,8 @@ typing = [
 
 [[package]]
 name = "enochecker3"
-version = "0.14.0"
-source = { registry = "https://pypi.org/simple" }
+version = "0.15.0"
+source = { git = "https://git.atklab.cloud/atklab/enochecker3?branch=main#0ae75468dfdf66558ddbc82b1731820ec0afdff3" }
 dependencies = [
     { name = "enochecker-core" },
     { name = "fastapi" },
@@ -373,17 +369,13 @@ dependencies = [
     { name = "pymongo" },
     { name = "uvicorn" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/35/e6/b28f997901409707e37740178b4956bb18da6dc186b119612063e5a6f445/enochecker3-0.14.0.tar.gz", hash = "sha256:d1d8473a03da19509f29c980256f3b2e9acd9a522fcfe3f7e95121aa9b991c29", size = 21232, upload-time = "2026-04-14T16:23:39.967Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/81/32/40dc701afdd02d0d748adf41fc3a1cc5066996f6c02149c6c98194ca82d7/enochecker3-0.14.0-py3-none-any.whl", hash = "sha256:e9b4fc8641c02fad5332b32cd82874ae63f1a796b1a2bce58e4d636456726432", size = 19567, upload-time = "2026-04-14T16:23:39.114Z" },
-]
 
 [[package]]
 name = "exceptiongroup"
 version = "1.3.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "typing-extensions" },
+    { name = "typing-extensions", marker = "python_full_version < '3.13'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/0b/9f/a65090624ecf468cdca03533906e7c69ed7588582240cfe7cc9e770b50eb/exceptiongroup-1.3.0.tar.gz", hash = "sha256:b241f5885f560bc56a59ee63ca4c6a8bfa46ae4ad651af316d4e81817bb9fd88", size = 29749, upload-time = "2025-05-10T17:42:51.123Z" }
 wheels = [
