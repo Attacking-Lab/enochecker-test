@@ -39,48 +39,6 @@ def pytest_addoption(parser):
     parser.addoption("--seed", action="store", type=int)
     parser.addoption("--stress", action="store", type=bool)
     parser.addoption("--flag-types", action="store", default="ascii,utf8")
-    parser.addoption(
-        "--with-group",
-        action="append",
-        default=[],
-        metavar="GROUP",
-        help="Add all tests in GROUP to the selection (repeatable, comma-separated allowed)",
-    )
-    parser.addoption(
-        "--without-group",
-        action="append",
-        default=[],
-        metavar="GROUP",
-        help="Remove all tests in GROUP from the selection (repeatable, comma-separated allowed)",
-    )
-    parser.addoption(
-        "--with",
-        dest="with_tests",
-        action="append",
-        default=[],
-        metavar="TEST",
-        help="Add TEST (by its function name) to the selection (repeatable, comma-separated allowed)",
-    )
-    parser.addoption(
-        "--without",
-        dest="without_tests",
-        action="append",
-        default=[],
-        metavar="TEST",
-        help="Remove TEST (by its function name) from the selection (repeatable, comma-separated allowed)",
-    )
-    parser.addoption(
-        "--nullset",
-        action="store_true",
-        default=False,
-        help="Start with no tests selected instead of all of them; use --with/--with-group to opt tests back in",
-    )
-    parser.addoption(
-        "--all",
-        action="store_true",
-        default=False,
-        help="Select all tests, overriding --nullset",
-    )
 
 
 def pytest_configure(config):
@@ -123,71 +81,6 @@ def pytest_collection_modifyitems(config, items):
         for item in items:
             if "stress" in item.keywords:
                 item.add_marker(skip_stress)
-
-    _apply_test_selection(config, items)
-
-
-def _split_csv(values):
-    result: list[str] = []
-    for value in values:
-        result.extend(part.strip() for part in value.split(",") if part.strip())
-    return result
-
-
-def _item_groups(item):
-    return {
-        mark.name for mark in item.iter_markers() if mark.name in GROUP_DESCRIPTIONS
-    }
-
-
-def _item_test_name(item):
-    return getattr(item, "originalname", None) or item.name.split("[")[0]
-
-
-def _apply_test_selection(config, items):
-    with_groups = set(_split_csv(config.getoption("with_group")))
-    without_groups = set(_split_csv(config.getoption("without_group")))
-    with_tests = set(_split_csv(config.getoption("with_tests")))
-    without_tests = set(_split_csv(config.getoption("without_tests")))
-    nullset = config.getoption("nullset")
-    select_all = config.getoption("all")
-
-    if not (
-        with_groups
-        or without_groups
-        or with_tests
-        or without_tests
-        or nullset
-        or select_all
-    ):
-        return
-
-    if select_all:
-        selected = set(items)
-    elif nullset:
-        selected = set()
-    else:
-        selected = set(items)
-
-    if with_groups or with_tests:
-        for item in items:
-            if item in selected:
-                continue
-            if _item_groups(item) & with_groups or _item_test_name(item) in with_tests:
-                selected.add(item)
-
-    if without_groups or without_tests:
-        for item in list(selected):
-            if (
-                _item_groups(item) & without_groups
-                or _item_test_name(item) in without_tests
-            ):
-                selected.discard(item)
-
-    deselected = [item for item in items if item not in selected]
-    if deselected:
-        config.hook.pytest_deselected(items=deselected)
-    items[:] = [item for item in items if item in selected]
 
 
 @pytest.hookimpl(hookwrapper=True)

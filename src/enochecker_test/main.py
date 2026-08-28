@@ -19,12 +19,7 @@ def run_tests(
     stress: bool,
     flag_types: str = "ascii,utf8",
     exploit_timeout: Optional[int] = None,
-    with_group: Optional[list] = None,
-    without_group: Optional[list] = None,
-    with_tests: Optional[list] = None,
-    without_tests: Optional[list] = None,
-    nullset: bool = False,
-    all_tests: bool = False,
+    group_expr: Optional[str] = None,
 ):
     transport = httpx.HTTPTransport(retries=10)
     with httpx.Client(transport=transport) as client:
@@ -70,18 +65,9 @@ def run_tests(
     test_args.append(f"--flag-types={flag_types}")
     if exploit_timeout is not None:
         test_args.append(f"--exploit-timeout={exploit_timeout}")
-    for group in with_group or []:
-        test_args.append(f"--with-group={group}")
-    for group in without_group or []:
-        test_args.append(f"--without-group={group}")
-    for name in with_tests or []:
-        test_args.append(f"--with={name}")
-    for name in without_tests or []:
-        test_args.append(f"--without={name}")
-    if nullset:
-        test_args.append("--nullset")
-    if all_tests:
-        test_args.append("--all")
+    if group_expr:
+        test_args.append("-m")
+        test_args.append(group_expr)
 
     if test_expr:
         test_args.append("-k")
@@ -106,12 +92,13 @@ service's docker container as obtained by e.g:
 
     $ docker network inspect service_default | jq ".[].IPAM.Config[].Gateway"
 
-By default all tests run. --nullset flips that to none, and --with/--with-group
-add tests back in; --without/--without-group remove tests and win over --with/
---with-group/--all. --all selects everything, overriding --nullset:
+By default all tests run. testexpr (pytest's -k) selects/deselects individual
+tests by name; --groups (pytest's -m) selects/deselects whole groups by their
+@pytest.mark.<group> marker. Both take a boolean expression (and/or/not/
+parens) and, if both are given, a test must match both:
 
-    $ enochecker_test --nullset --with-group putflag --with-group getflag ...
-    $ enochecker_test --without-group exploit --without test_getflag_twice ...
+    $ enochecker_test --groups "putflag or getflag" ...
+    $ enochecker_test --groups "not exploit" "not test_getflag_twice" ...
 """,
     )
     parser.add_argument(
@@ -180,47 +167,15 @@ add tests back in; --without/--without-group remove tests and win over --with/
         default=os.environ.get("ENOCHECKER_EXPLOIT_TIMEOUT"),
     )
     parser.add_argument(
-        "--with-group",
-        action="append",
-        metavar="GROUP",
-        help="Add all tests in GROUP (e.g. 'putflag', 'exploit', 'stress') to the "
-        "selection. Repeatable, comma-separated allowed. Groups: putflag, getflag, "
-        "putnoise, getnoise, havoc, exploit, test, stress, misc",
-    )
-    parser.add_argument(
-        "--without-group",
-        action="append",
-        metavar="GROUP",
-        help="Remove all tests in GROUP from the selection. Repeatable, "
-        "comma-separated allowed. Takes precedence over --with/--with-group/--all",
-    )
-    parser.add_argument(
-        "--with",
-        dest="with_tests",
-        action="append",
-        metavar="TEST",
-        help="Add TEST (by its function name, e.g. 'test_getflag_twice') to the "
-        "selection. Repeatable, comma-separated allowed",
-    )
-    parser.add_argument(
-        "--without",
-        dest="without_tests",
-        action="append",
-        metavar="TEST",
-        help="Remove TEST (by its function name) from the selection. Repeatable, "
-        "comma-separated allowed. Takes precedence over --with/--with-group/--all",
-    )
-    parser.add_argument(
-        "--nullset",
-        action="store_true",
-        help="Start with no tests selected instead of all of them; use --with/"
-        "--with-group to opt tests back in",
-    )
-    parser.add_argument(
-        "--all",
-        dest="all_tests",
-        action="store_true",
-        help="Select all tests, overriding --nullset",
+        "-g",
+        "--groups",
+        dest="group_expr",
+        metavar="EXPR",
+        help="Select tests by group in the syntax expected by pytest's -m flag, "
+        "e.g. 'putflag or getflag' or 'not exploit'. Groups: putflag, getflag, "
+        "putnoise, getnoise, havoc, exploit, test, stress, misc. Combines with "
+        "testexpr: a test must match both if both are given. If no expr is "
+        "specified, no group filtering is applied.",
     )
     parser.add_argument(
         "testexpr",
@@ -265,10 +220,5 @@ add tests back in; --without/--without-group remove tests and win over --with/
         args.stress,
         args.flag_types,
         args.exploit_timeout,
-        args.with_group,
-        args.without_group,
-        args.with_tests,
-        args.without_tests,
-        args.nullset,
-        args.all_tests,
+        args.group_expr,
     )
