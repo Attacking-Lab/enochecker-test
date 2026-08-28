@@ -5,6 +5,19 @@ Automatically test services/checker using the enochecker API
 # Usage
 `enochecker_test` can be used to run tests against a checker, optionally you can specify wich tests to run e.g. `enochecker_test test_getflag[0] test_exploit` will run only the first `getflag` test and all `test_exploit` tests.
 
+Tests are also annotated with groups (`putflag`, `getflag`, `putnoise`, `getnoise`, `havoc`, `exploit`, `test`, `stress`, `misc`), and the selection can be amended from the CLI:
+
+- `--with-group GROUP` / `--without-group GROUP` add/remove all tests in GROUP (repeatable, comma-separated allowed)
+- `--with TEST` / `--without TEST` add/remove a single test by its function name (repeatable, comma-separated allowed)
+- `--nullset` starts the selection empty instead of "everything" (use `--with`/`--with-group` to opt tests back in)
+- `--all` selects everything, overriding `--nullset`
+- `--without`/`--without-group` always win over `--with`/`--with-group`/`--all` for the same test
+
+```
+$ enochecker_test --nullset --with-group putflag --with-group getflag ...
+$ enochecker_test --without-group exploit --without test_getflag_twice ...
+```
+
 ```
 usage: enochecker_test [-h] [-a CHECKER_ADDRESS] [-p {1..65535}] [-A SERVICE_ADDRESS] [testexpr]
 
