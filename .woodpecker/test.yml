@@ -14,6 +14,18 @@
 # packages those steps' own `--group` still need to add) come from
 # PyPI, not the private remote.
 #
+# UV_CACHE_DIR/UV_PYTHON_INSTALL_DIR below point into that same shared
+# workspace volume rather than each step's own (ephemeral, per-container)
+# $HOME, so the package cache `sync` populates -- and any group-specific
+# extras format/lint/mypy/test/build add on top of it via their own
+# `--group` -- survives across steps instead of being re-fetched from
+# PyPI every time; mirrors enochecker3's test.yml, which needs the same
+# two vars to keep its per-matrix-value uv-provisioned interpreter (this
+# repo bakes in one Python version instead, see below) from dangling.
+#
+# `--isolated` (which used to be set here) is deprecated by uv in favor
+# of `--no-config`.
+#
 # `image`/`environment` are shared by every step below and templated
 # via YAML anchors/aliases declared in the `variables` block (`*ci_image`,
 # `<<: *uv_env`) instead of repeating them six times over -- mirrors
@@ -41,7 +53,9 @@
 variables:
   - &ci_image oci.atklab.cloud/enochecker-test/enochecker-test-ci:latest
   - &uv_env
-    UV_FLAGS: "--exact --isolated --frozen"
+    UV_FLAGS: "--exact --no-config --frozen"
+    UV_CACHE_DIR: /woodpecker/.uv-cache
+    UV_PYTHON_INSTALL_DIR: /woodpecker/.uv-python
 
 when:
   - event: [push, pull_request, manual, tag]
