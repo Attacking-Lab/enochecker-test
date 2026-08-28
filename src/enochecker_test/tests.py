@@ -65,6 +65,11 @@ def exploit_variants(request) -> list[int]:
     return _parse_exploit_variants(request.config.getoption("--exploit-variants"))
 
 
+@pytest.fixture
+def exploit_timeout(request) -> int:
+    return request.config.getoption("--exploit-timeout") or REQUEST_TIMEOUT
+
+
 def pytest_generate_tests(metafunc):
     global task_id_random
     global random_source
@@ -211,18 +216,21 @@ async def _execute_request(
     expected_result: CheckerTaskResult,
     client: Optional[httpx.AsyncClient],
 ) -> CheckerResultMessage:
+    # The checker holds the connection open for the full task, so the HTTP
+    # client has to wait at least as long as the timeout given to the checker.
+    http_timeout = max(REQUEST_TIMEOUT, request_message.timeout / 1000)
     if client is not None:
         r = await client.post(
             f"{checker_url}",
             json=request_message.model_dump(),
-            timeout=REQUEST_TIMEOUT,
+            timeout=http_timeout,
         )
     else:
         async with httpx.AsyncClient() as client:
             r = await client.post(
                 f"{checker_url}",
                 json=request_message.model_dump(),
-                timeout=REQUEST_TIMEOUT,
+                timeout=http_timeout,
             )
     print(r.content)
     result_message: CheckerResultMessage = CheckerResultMessage.model_validate_json(
@@ -368,6 +376,7 @@ async def _test_exploit(
     unique_variant_index=None,
     expected_result=CheckerTaskResult.OK,
     client=None,
+    timeout=None,
 ) -> Optional[str]:
     if unique_variant_index is None:
         unique_variant_index = exploit_id
@@ -381,6 +390,7 @@ async def _test_exploit(
         flag_regex=flag_regex,
         flag_hash=flag_hash,
         attack_info=attack_info,
+        timeout=timeout * 1000 if timeout is not None else None,
     )
     result_message: CheckerResultMessage = await _execute_request(
         request_message, checker_url, expected_result, client
@@ -866,6 +876,7 @@ async def _do_exploit_run(
     flag_id,
     service_address,
     checker_url: str,
+    exploit_timeout: int,
     tries: int = 1,
 ):
     flag = generate_dummyflag(encoding)
@@ -889,6 +900,7 @@ async def _do_exploit_run(
             exploit_id,
             service_address,
             checker_url,
+            timeout=exploit_timeout,
         )
         assert found_flag == flag, (
             f"Found flag is incorrect. Expected: {flag}. Found: {found_flag}"
@@ -903,6 +915,7 @@ async def test_exploit_per_exploit_id(
     exploit_variants,
     service_address,
     checker_url,
+    exploit_timeout,
 ):
     await _do_exploit_run(
         encoding,
@@ -912,6 +925,7 @@ async def test_exploit_per_exploit_id(
         exploit_variants[exploit_id],
         service_address,
         checker_url,
+        exploit_timeout,
     )
 
 
@@ -923,6 +937,7 @@ async def test_exploit_twice(
     exploit_variants,
     service_address,
     checker_url: str,
+    exploit_timeout,
 ):
     await _do_exploit_run(
         encoding,
@@ -932,6 +947,7 @@ async def test_exploit_twice(
         exploit_variants[exploit_id],
         service_address,
         checker_url,
+        exploit_timeout,
         tries=2,
     )
 

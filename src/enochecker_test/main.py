@@ -2,6 +2,7 @@ import argparse
 import logging
 import os
 import sys
+from typing import Optional
 
 import httpx
 import pytest
@@ -17,6 +18,7 @@ def run_tests(
     seed: int,
     stress: bool,
     flag_types: str = "ascii,utf8",
+    exploit_timeout: Optional[int] = None,
 ):
     transport = httpx.HTTPTransport(retries=10)
     with httpx.Client(transport=transport) as client:
@@ -60,6 +62,8 @@ def run_tests(
     if stress:
         test_args.append("--stress")
     test_args.append(f"--flag-types={flag_types}")
+    if exploit_timeout is not None:
+        test_args.append(f"--exploit-timeout={exploit_timeout}")
 
     if test_expr:
         test_args.append("-k")
@@ -143,6 +147,14 @@ service's docker container as obtained by e.g:
         default=os.environ.get("ENOCHECKER_FLAG_TYPES", "ascii,utf8"),
     )
     parser.add_argument(
+        "--exploit-timeout",
+        help="Timeout in seconds given to the checker for exploit tasks specifically "
+        "(defaults to the same timeout used for all other checker methods, "
+        "or ENOCHECKER_EXPLOIT_TIMEOUT if set)",
+        type=int,
+        default=os.environ.get("ENOCHECKER_EXPLOIT_TIMEOUT"),
+    )
+    parser.add_argument(
         "testexpr",
         help="Specify the tests that should be run in the syntax expected by pytests -k flag, e.g. 'test_getflag' or 'not exploit'. If no expr is specified, all tests will be run.",
         nargs="?",
@@ -184,4 +196,5 @@ service's docker container as obtained by e.g:
         args.seed,
         args.stress,
         args.flag_types,
+        args.exploit_timeout,
     )
