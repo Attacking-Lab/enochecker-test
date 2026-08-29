@@ -53,8 +53,9 @@ positional arguments:
   MARKEXPR              Select tests by marker in the syntax expected by pytest's -m flag, e.g.
                         'putflag or getflag', 'not exploit' or 'getflag and utf8'. Markers are the
                         group names (putflag, getflag, putnoise, getnoise, havoc, exploit, test,
-                        stress, misc) plus the flag encodings (ascii, utf8). Defaults to 'not
-                        stress and not utf8'; naming an expr replaces that default rather than
+                        stress, misc) plus the flag encodings (ascii, utf8). Defaults to the
+                        ENOCHECKER_MARK_EXPR environment variable, or to 'not stress and not utf8'
+                        if that is unset; naming an expr replaces that default rather than
                         narrowing it, so the stress and utf8 tests can be selected back in.
 
 options:
@@ -109,10 +110,11 @@ the run to a single variant id:
     $ enochecker_test --named test_getflag_twice ...
     $ enochecker_test --named "not offline" --variant 0 putflag ...
 
-markexpr defaults to "not stress and not utf8": the stress tests flood the
-checker with hundreds of concurrent tasks, and utf8 flags exercise an encoding
-most services never see. Naming any markexpr replaces that default rather than
-narrowing it, so spell the exclusions out again to keep them:
+markexpr defaults to ENOCHECKER_MARK_EXPR, or to "not stress and not utf8"
+when that is unset: the stress tests flood the checker with hundreds of
+concurrent tasks, and utf8 flags exercise an encoding most services never see.
+Naming any markexpr replaces that default rather than narrowing it, so spell
+the exclusions out again to keep them:
 
     $ enochecker_test stress ...
     $ enochecker_test utf8 ...
