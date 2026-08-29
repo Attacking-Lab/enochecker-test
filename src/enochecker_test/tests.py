@@ -16,6 +16,8 @@ from enochecker_core import (
     CheckerTaskResult,
 )
 
+from enochecker_test.conftest import FLAG_ENCODINGS
+
 global_round_id = 0
 FLAG_REGEX_ASCII = r"ENO[A-Za-z0-9+\/=]{48}"
 FLAG_REGEX_UTF8 = r"🥺[A-Za-z0-9+\/=]{48}🥺🥺"
@@ -73,6 +75,21 @@ def exploit_timeout(request) -> int:
     return request.config.getoption("--exploit-timeout") or REQUEST_TIMEOUT
 
 
+def _variant_ids(
+    count: int, multiplier: int, variant: Optional[int], multiplied: bool
+) -> list[int]:
+    """The variant ids a checker method is parametrized over.
+
+    The _multiplied tests use the ids from `count` up to `count * multiplier`;
+    a checker maps those back onto a declared variant modulo `count`, which is
+    what --variant filters on so it selects the same flagstore in both ranges.
+    """
+    ids = range(count, count * multiplier) if multiplied else range(count)
+    if variant is None:
+        return list(ids)
+    return [i for i in ids if count and i % count == variant]
+
+
 def pytest_generate_tests(metafunc):
     global task_id_random
     global random_source
@@ -92,49 +109,48 @@ def pytest_generate_tests(metafunc):
     )
     test_variants: int = metafunc.config.getoption("--test-variants")
     multiplier: int = metafunc.config.getoption("--multiplier")
+    variant: Optional[int] = metafunc.config.getoption("--variant")
+
+    def ids(count: int, multiplied: bool = False) -> list[int]:
+        return _variant_ids(count, multiplier, variant, multiplied)
 
     if "flag_id" in metafunc.fixturenames:
-        metafunc.parametrize("flag_id", range(flag_variants))
+        metafunc.parametrize("flag_id", ids(flag_variants))
     if "flag_id_multiplied" in metafunc.fixturenames:
-        metafunc.parametrize(
-            "flag_id_multiplied", range(flag_variants, flag_variants * multiplier)
-        )
+        metafunc.parametrize("flag_id_multiplied", ids(flag_variants, True))
     if "flag_variants" in metafunc.fixturenames:
         metafunc.parametrize("flag_variants", [flag_variants])
 
     if "noise_id" in metafunc.fixturenames:
-        metafunc.parametrize("noise_id", range(noise_variants))
+        metafunc.parametrize("noise_id", ids(noise_variants))
     if "noise_id_multiplied" in metafunc.fixturenames:
-        metafunc.parametrize(
-            "noise_id_multiplied", range(noise_variants, noise_variants * multiplier)
-        )
+        metafunc.parametrize("noise_id_multiplied", ids(noise_variants, True))
     if "noise_variants" in metafunc.fixturenames:
         metafunc.parametrize("noise_variants", [noise_variants])
 
     if "havoc_id" in metafunc.fixturenames:
-        metafunc.parametrize("havoc_id", range(havoc_variants))
+        metafunc.parametrize("havoc_id", ids(havoc_variants))
     if "havoc_id_multiplied" in metafunc.fixturenames:
-        metafunc.parametrize(
-            "havoc_id_multiplied", range(havoc_variants, havoc_variants * multiplier)
-        )
+        metafunc.parametrize("havoc_id_multiplied", ids(havoc_variants, True))
     if "havoc_variants" in metafunc.fixturenames:
         metafunc.parametrize("havoc_variants", [havoc_variants])
 
     if "exploit_id_multiplied" in metafunc.fixturenames:
-        metafunc.parametrize(
-            "exploit_id_multiplied",
-            range(len(exploit_variants), len(exploit_variants) * multiplier),
-        )
+        metafunc.parametrize("exploit_id_multiplied", ids(len(exploit_variants), True))
     if "exploit_id" in metafunc.fixturenames:
-        metafunc.parametrize("exploit_id", range(len(exploit_variants)))
+        metafunc.parametrize("exploit_id", ids(len(exploit_variants)))
 
     if "test_id" in metafunc.fixturenames:
-        metafunc.parametrize("test_id", range(test_variants))
+        metafunc.parametrize("test_id", ids(test_variants))
 
     if "encoding" in metafunc.fixturenames:
-        flag_types = metafunc.config.getoption("--flag-types")
-        encodings = [t.strip() for t in flag_types.split(",") if t.strip()]
-        metafunc.parametrize("encoding", encodings)
+        metafunc.parametrize(
+            "encoding",
+            [
+                pytest.param(encoding, marks=getattr(pytest.mark, encoding))
+                for encoding in FLAG_ENCODINGS
+            ],
+        )
 
     if "stress_multiplier" in metafunc.fixturenames:
         metafunc.parametrize("stress_multiplier", [32, 128, 512])

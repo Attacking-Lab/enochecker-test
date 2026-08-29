@@ -8,18 +8,22 @@ import httpx
 import pytest
 from enochecker_core import CheckerInfoMessage
 
+# Stress tests flood the checker with hundreds of concurrent tasks, and utf8
+# flags exercise an encoding most services never see, so both are opt-in:
+# naming any markexpr at all overrides this and can select them back in.
+DEFAULT_MARK_EXPR = "not stress and not utf8"
+
 
 def run_tests(
     host: str,
     port: int,
     service_address: str,
-    test_expr: str,
+    mark_expr: str,
     multiplier: int,
     seed: int,
-    stress: bool,
-    flag_types: str = "ascii,utf8",
     exploit_timeout: Optional[int] = None,
-    group_expr: Optional[str] = None,
+    variant: Optional[int] = None,
+    name_expr: Optional[str] = None,
 ):
     transport = httpx.HTTPTransport(retries=10)
     with httpx.Client(transport=transport) as client:
@@ -43,6 +47,21 @@ def run_tests(
         info.test_variants,
     )
 
+    # An out-of-range variant would otherwise parametrize every method with an
+    # empty set, which pytest reports as "skipped" rather than as a bad option.
+    max_variants = max(
+        info.flag_variants,
+        info.noise_variants,
+        info.havoc_variants,
+        len(info.exploit_variants),
+        info.test_variants,
+    )
+    if variant is not None and not 0 <= variant < max_variants:
+        raise Exception(
+            f"Invalid variant {variant}, the checker declares at most "
+            f"{max_variants} variants for any of its methods"
+        )
+
     test_args = [
         f"--checker-address={host}",
         f"--checker-port={port}",
@@ -60,18 +79,15 @@ def run_tests(
         "-o",
         "asyncio_mode=auto",
     ]
-    if stress:
-        test_args.append("--stress")
-    test_args.append(f"--flag-types={flag_types}")
     if exploit_timeout is not None:
         test_args.append(f"--exploit-timeout={exploit_timeout}")
-    if group_expr:
-        test_args.append("-m")
-        test_args.append(group_expr)
-
-    if test_expr:
+    if variant is not None:
+        test_args.append(f"--variant={variant}")
+    test_args.append("-m")
+    test_args.append(mark_expr or DEFAULT_MARK_EXPR)
+    if name_expr:
         test_args.append("-k")
-        test_args.append(test_expr)
+        test_args.append(name_expr)
     test_args.append(os.path.join(os.path.dirname(__file__), "tests.py"))
 
     sys.exit(pytest.main(test_args))
@@ -85,20 +101,35 @@ def main():
         description="Utility for testing checkers that implement the enochecker API",
         epilog="""Example Usage:
 
-    $ enochecker_test -a localhost -p 5008 -A 172.20.0.1 test_putflag
+    $ enochecker_test -a localhost -p 5008 -A 172.20.0.1 putflag
 
 Assuming that 172.20.0.1 is the ip address of the gateway of the network of the
 service's docker container as obtained by e.g:
 
     $ docker network inspect service_default | jq ".[].IPAM.Config[].Gateway"
 
-By default all tests run. testexpr (pytest's -k) selects/deselects individual
-tests by name; --groups (pytest's -m) selects/deselects whole groups by their
-@pytest.mark.<group> marker. Both take a boolean expression (and/or/not/
-parens) and, if both are given, a test must match both:
+By default all tests run. Three independent filters narrow that down, and a
+test must pass all of the ones given. markexpr (the positional argument,
+pytest's -m) matches @pytest.mark.<name> markers -- group names (putflag,
+getflag, putnoise, getnoise, havoc, exploit, test, stress, misc) and flag
+encodings (ascii, utf8) -- as a boolean expression (and/or/not/parens).
+--named (pytest's -k) matches individual tests by name. --variant restricts
+the run to a single variant id:
 
-    $ enochecker_test --groups "putflag or getflag" ...
-    $ enochecker_test --groups "not exploit" "not test_getflag_twice" ...
+    $ enochecker_test "putflag or getflag" ...
+    $ enochecker_test "getflag and not utf8" ...
+    $ enochecker_test --variant 0 "not exploit" ...
+    $ enochecker_test --named test_getflag_twice ...
+    $ enochecker_test --named "not offline" --variant 0 putflag ...
+
+markexpr defaults to "not stress and not utf8": the stress tests flood the
+checker with hundreds of concurrent tasks, and utf8 flags exercise an encoding
+most services never see. Naming any markexpr replaces that default rather than
+narrowing it, so spell the exclusions out again to keep them:
+
+    $ enochecker_test stress ...
+    $ enochecker_test utf8 ...
+    $ enochecker_test "putflag and not stress and not utf8" ...
 """,
     )
     parser.add_argument(
@@ -149,16 +180,6 @@ parens) and, if both are given, a test must match both:
         default=0,
     )
     parser.add_argument(
-        "--stress",
-        help="Enable stress tests",
-        action="store_true",
-    )
-    parser.add_argument(
-        "--flag-types",
-        help="Comma-separated list of flag encodings to test (default: ascii,utf8)",
-        default=os.environ.get("ENOCHECKER_FLAG_TYPES", "ascii,utf8"),
-    )
-    parser.add_argument(
         "--exploit-timeout",
         help="Timeout in seconds given to the checker for exploit tasks specifically "
         "(defaults to the same timeout used for all other checker methods, "
@@ -167,19 +188,34 @@ parens) and, if both are given, a test must match both:
         default=os.environ.get("ENOCHECKER_EXPLOIT_TIMEOUT"),
     )
     parser.add_argument(
-        "-g",
-        "--groups",
-        dest="group_expr",
+        "-k",
+        "--named",
+        dest="name_expr",
         metavar="EXPR",
-        help="Select tests by group in the syntax expected by pytest's -m flag, "
-        "e.g. 'putflag or getflag' or 'not exploit'. Groups: putflag, getflag, "
-        "putnoise, getnoise, havoc, exploit, test, stress, misc. Combines with "
-        "testexpr: a test must match both if both are given. If no expr is "
-        "specified, no group filtering is applied.",
+        help="Select individual tests by name in the syntax expected by pytest's "
+        "-k flag, e.g. 'test_getflag_twice' or 'not offline'. Composes with "
+        "MARKEXPR and --variant: a test must match every filter that is given.",
     )
     parser.add_argument(
-        "testexpr",
-        help="Specify the tests that should be run in the syntax expected by pytests -k flag, e.g. 'test_getflag' or 'not exploit'. If no expr is specified, all tests will be run.",
+        "-v",
+        "--variant",
+        metavar="ID",
+        help="Restrict the run to a single variant id, e.g. only putflag/getflag "
+        "variant 0. Applies per checker method, so a run also covers the "
+        "_multiplied ids that map onto that variant. Defaults to all variants.",
+        type=int,
+        default=None,
+    )
+    parser.add_argument(
+        "markexpr",
+        metavar="MARKEXPR",
+        help="Select tests by marker in the syntax expected by pytest's -m flag, "
+        "e.g. 'putflag or getflag', 'not exploit' or 'getflag and utf8'. Markers "
+        "are the group names (putflag, getflag, putnoise, getnoise, havoc, "
+        "exploit, test, stress, misc) plus the flag encodings (ascii, utf8). "
+        "Defaults to 'not stress and not utf8'; naming an expr replaces that "
+        "default rather than narrowing it, so the stress and utf8 tests can be "
+        "selected back in.",
         nargs="?",
     )
 
@@ -214,11 +250,10 @@ parens) and, if both are given, a test must match both:
         args.checker_address,
         args.checker_port,
         args.service_address,
-        args.testexpr,
+        args.markexpr,
         args.multiplier,
         args.seed,
-        args.stress,
-        args.flag_types,
         args.exploit_timeout,
-        args.group_expr,
+        args.variant,
+        args.name_expr,
     )

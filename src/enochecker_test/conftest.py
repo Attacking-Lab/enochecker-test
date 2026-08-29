@@ -19,9 +19,14 @@ GROUP_DESCRIPTIONS = {
     "havoc": "tests exercising the checker's havoc method",
     "exploit": "tests exercising the checker's exploit method",
     "test": "tests exercising the checker's test method",
-    "stress": "run stress tests",
+    "stress": "tests hammering the checker with many concurrent tasks",
     "misc": "tests that don't map to a single checker method",
 }
+
+
+# Flag encodings every encoding-parametrized test runs under. Selecting a
+# subset is done with -m on the per-encoding markers, not by narrowing this.
+FLAG_ENCODINGS = ("ascii", "utf8")
 
 
 def pytest_addoption(parser):
@@ -37,13 +42,19 @@ def pytest_addoption(parser):
     parser.addoption("--exploit-timeout", action="store", type=int, default=None)
     parser.addoption("--multiplier", action="store", type=int)
     parser.addoption("--seed", action="store", type=int)
-    parser.addoption("--stress", action="store", type=bool)
-    parser.addoption("--flag-types", action="store", default="ascii,utf8")
+    parser.addoption("--variant", action="store", type=int, default=None)
 
 
 def pytest_configure(config):
     for group, description in GROUP_DESCRIPTIONS.items():
         config.addinivalue_line("markers", f"{group}: {description}")
+
+    # Encoding is a second, orthogonal marker axis: tests parametrized over a
+    # flag encoding carry that encoding's name as a marker so -m can select it.
+    for encoding in FLAG_ENCODINGS:
+        config.addinivalue_line(
+            "markers", f"{encoding}: tests using {encoding}-encoded flags"
+        )
 
     # enable tracing if OTEL_EXPORTER_OTLP_ENDPOINT is set
     if otlp_endpoint := os.environ.get("OTEL_EXPORTER_OTLP_ENDPOINT"):
@@ -73,14 +84,6 @@ def setup_telemetry(request):
     with tracer.start_as_current_span(request.node.nodeid.split("::")[1]) as span:
         request.node.trace_id = format(span.get_span_context().trace_id, "032x")
         yield span
-
-
-def pytest_collection_modifyitems(config, items):
-    if not config.getoption("--stress"):
-        skip_stress = pytest.mark.skip(reason="need --stress option to run")
-        for item in items:
-            if "stress" in item.keywords:
-                item.add_marker(skip_stress)
 
 
 @pytest.hookimpl(hookwrapper=True)
