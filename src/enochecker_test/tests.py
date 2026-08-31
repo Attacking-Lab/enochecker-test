@@ -2,7 +2,7 @@ import asyncio
 import base64
 import hashlib
 import secrets
-from random import Random, SystemRandom
+from random import Random
 from typing import Optional
 
 import httpx
@@ -28,13 +28,10 @@ CHAIN_ID_PREFIX = secrets.token_hex(20)
 # simulates an unreachable service without depending on network topology.
 OFFLINE_ADDRESS = "offline.invalid"
 
-random_source = Random
-task_id_random = random_source()
-
 
 class TaskIdFactory:
     def __init__(self, seed):
-        self.rand = random_source(seed)
+        self.rand = Random(seed)
 
     def __next__(self):
         return self.rand.randint(0, 1 << 48)
@@ -91,16 +88,6 @@ def _variant_ids(
 
 
 def pytest_generate_tests(metafunc):
-    global task_id_random
-    global random_source
-
-    seed: int = metafunc.config.getoption("--seed")
-    if seed == 0:
-        random_source = SystemRandom
-    else:
-        random_source = Random
-    task_id_random = random_source(seed)
-
     flag_variants: int = metafunc.config.getoption("--flag-variants")
     noise_variants: int = metafunc.config.getoption("--noise-variants")
     havoc_variants: int = metafunc.config.getoption("--havoc-variants")
@@ -173,8 +160,13 @@ def round_id():
 
 
 @pytest.fixture()
-def task_ids():
-    return TaskIdFactory(task_id_random.randbytes(8))
+def task_ids(request):
+    # Deriving the stream from the test's own name rather than from a single
+    # run-wide sequence keeps a test's task ids independent of which other
+    # tests were selected, so replaying one test with the run's seed hands the
+    # checker the task ids -- and hence the checker-side RNG -- it saw before.
+    seed: str = request.config.getoption("--seed")
+    return TaskIdFactory(f"{seed}:{request.node.name}")
 
 
 def _flag_regex_for_encoding(encoding: str) -> str:

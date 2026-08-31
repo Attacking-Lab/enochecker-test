@@ -21,7 +21,7 @@ def run_tests(
     service_address: str,
     mark_expr: str,
     multiplier: int,
-    seed: int,
+    seed: Optional[str] = None,
     exploit_timeout: Optional[int] = None,
     variant: Optional[int] = None,
     name_expr: Optional[str] = None,
@@ -74,12 +74,13 @@ def run_tests(
         "--exploit-variants=" + ",".join(str(v) for v in info.exploit_variants),
         f"--test-variants={info.test_variants}",
         f"--multiplier={multiplier}",
-        f"--seed={seed}",
         "--durations=0",
         "-v",
         "-o",
         "asyncio_mode=auto",
     ]
+    if seed is not None:
+        test_args.append(f"--seed={seed}")
     if exploit_timeout is not None:
         test_args.append(f"--exploit-timeout={exploit_timeout}")
     if variant is not None:
@@ -177,9 +178,11 @@ the exclusions out again to keep them:
     parser.add_argument(
         "-s",
         "--seed",
-        help="Seed to use for task PRNG (0 = unseeded)",
-        type=int,
-        default=0,
+        help="Seed to use for the task PRNG, as printable text. Defaults to a "
+        "fresh random seed per run, which is printed in the run header so it "
+        "can be passed back in to repeat that run's task ids",
+        type=str,
+        default=None,
     )
     parser.add_argument(
         "--exploit-timeout",

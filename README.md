@@ -41,6 +41,20 @@ The three filters are independent and compose — a test runs only if it matches
 $ enochecker_test --named "not offline" --variant 0 "putflag or getflag" ...
 ```
 
+Each run seeds the task-id PRNG with a fresh random seed and prints it in the run header:
+
+```
+seed: a85def42c911d737
+```
+
+Pass it back with `-s`/`--seed` to repeat the task ids a run used:
+
+```
+$ enochecker_test --seed a85def42c911d737 ...
+```
+
+A test's task ids are derived from the seed and the test's own name, so they don't depend on which other tests were selected — replaying a single failing test under the run's seed gives it the same task ids it had in the full run. Checkers that seed their own randomness from `task_id` (enochecker3 injects `Random(task.task_id)`) therefore replay the same random inputs. Flags are not derived from the seed and differ on every run.
+
 ```
 usage: enochecker_test [-h] [-a CHECKER_ADDRESS] [-n CHECKER_NETWORK] [-p {1..65535}]
                        [-A SERVICE_ADDRESS] [-N SERVICE_NETWORK] [-m MULTIPLIER] [-s SEED]
@@ -75,7 +89,9 @@ options:
                         The name of the service docker network to determine the IP from
   -m, --multiplier MULTIPLIER
                         Number of times to run for chains with _multiplied methods for
-  -s, --seed SEED       Seed to use for task PRNG (0 = unseeded)
+  -s, --seed SEED       Seed to use for the task PRNG, as printable text. Defaults to a fresh
+                        random seed per run, which is printed in the run header so it can be
+                        passed back in to repeat that run's task ids
   --exploit-timeout EXPLOIT_TIMEOUT
                         Timeout in seconds given to the checker for exploit tasks specifically
                         (defaults to the same timeout used for all other checker methods, or

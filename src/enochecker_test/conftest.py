@@ -1,4 +1,5 @@
 import os
+import secrets
 
 import pytest
 from opentelemetry import trace
@@ -41,11 +42,17 @@ def pytest_addoption(parser):
     parser.addoption("--test-variants", action="store", type=int)
     parser.addoption("--exploit-timeout", action="store", type=int, default=None)
     parser.addoption("--multiplier", action="store", type=int)
-    parser.addoption("--seed", action="store", type=int)
+    parser.addoption("--seed", action="store", type=str, default=None)
     parser.addoption("--variant", action="store", type=int, default=None)
 
 
 def pytest_configure(config):
+    # Seeding every run, rather than only the explicitly seeded ones, keeps a
+    # failure that depends on the task id sequence replayable: the seed is
+    # reported in the run header and can be passed back in verbatim.
+    if not config.option.seed:
+        config.option.seed = secrets.token_hex(8)
+
     for group, description in GROUP_DESCRIPTIONS.items():
         config.addinivalue_line("markers", f"{group}: {description}")
 
@@ -75,6 +82,10 @@ def pytest_configure(config):
         trace.set_tracer_provider(provider)
 
         HTTPXClientInstrumentor().instrument()
+
+
+def pytest_report_header(config):
+    return f"seed: {config.getoption('--seed')}"
 
 
 @pytest.fixture(autouse=True)
