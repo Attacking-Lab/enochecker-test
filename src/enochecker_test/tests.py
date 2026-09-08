@@ -80,6 +80,16 @@ def exploit_variants(request) -> list[int]:
     return _parse_exploit_variants(request.config.getoption("--exploit-variants"))
 
 
+def _parse_patched(option: str) -> set[int]:
+    """Exploit variant ids the service under test has already been patched against."""
+    return {int(variant) for variant in option.split(",") if variant}
+
+
+@pytest.fixture
+def patched_exploit_ids(request) -> set[int]:
+    return _parse_patched(request.config.getoption("--patched"))
+
+
 @pytest.fixture
 def exploit_timeout(request) -> int:
     return request.config.getoption("--exploit-timeout") or REQUEST_TIMEOUT
@@ -1008,6 +1018,7 @@ async def _do_exploit_run(
     checker_url: str,
     exploit_timeout: int,
     tries: int = 1,
+    patched: bool = False,
 ):
     flag = generate_dummyflag(encoding)
     flag_hash = hashlib.sha256(flag.encode()).hexdigest()
@@ -1032,9 +1043,15 @@ async def _do_exploit_run(
             checker_url,
             timeout=exploit_timeout,
         )
-        assert found_flag == flag, (
-            f"Found flag is incorrect. Expected: {flag}. Found: {found_flag}"
-        )
+        if patched:
+            assert found_flag != flag, (
+                f"Exploit variant {exploit_id} is marked --patched but still "
+                f"recovered the correct flag: {flag}"
+            )
+        else:
+            assert found_flag == flag, (
+                f"Found flag is incorrect. Expected: {flag}. Found: {found_flag}"
+            )
 
 
 @pytest.mark.exploit
@@ -1047,6 +1064,7 @@ async def test_exploit_per_exploit_id(
     service_address,
     checker_url,
     exploit_timeout,
+    patched_exploit_ids,
 ):
     await _do_exploit_run(
         encoding,
@@ -1057,6 +1075,7 @@ async def test_exploit_per_exploit_id(
         service_address,
         checker_url,
         exploit_timeout,
+        patched=exploit_id in patched_exploit_ids,
     )
 
 
@@ -1070,6 +1089,7 @@ async def test_exploit_twice(
     service_address,
     checker_url: str,
     exploit_timeout,
+    patched_exploit_ids,
 ):
     await _do_exploit_run(
         encoding,
@@ -1081,6 +1101,7 @@ async def test_exploit_twice(
         checker_url,
         exploit_timeout,
         tries=2,
+        patched=exploit_id in patched_exploit_ids,
     )
 
 

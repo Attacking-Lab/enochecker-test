@@ -35,7 +35,14 @@ $ enochecker_test --named test_getflag_twice ...
 $ enochecker_test --named "not offline" ...
 ```
 
-The three filters are independent and compose — a test runs only if it matches every one that was given:
+`--patched ID[,ID...]` marks one or more exploit variant ids as already patched in the service under test. For those ids, `test_exploit_per_exploit_id` and `test_exploit_twice` invert their assertion: they expect the exploit to fail to recover the flag, and fail the run if it still does. Use this to confirm a fix actually closes that exploit variant, rather than treating a still-working exploit as a passing test:
+
+```
+$ enochecker_test --patched 0 exploit ...
+$ enochecker_test --patched 0,2 exploit ...
+```
+
+The filters are independent and compose — a test runs only if it matches every one that was given:
 
 ```
 $ enochecker_test --named "not offline" --variant 0 "putflag or getflag" ...
@@ -59,6 +66,7 @@ A test's task ids are derived from the seed and the test's own name, so they don
 usage: enochecker_test [-h] [-a CHECKER_ADDRESS] [-n CHECKER_NETWORK] [-p {1..65535}]
                        [-A SERVICE_ADDRESS] [-N SERVICE_NETWORK] [-m MULTIPLIER] [-s SEED]
                        [--exploit-timeout EXPLOIT_TIMEOUT] [-k EXPR] [-v ID]
+                       [--patched ID[,ID...]]
                        [MARKEXPR]
 
 Utility for testing checkers that implement the enochecker API
@@ -102,6 +110,11 @@ options:
   -v, --variant ID      Restrict the run to a single variant id, e.g. only putflag/getflag variant
                         0. Applies per checker method, so a run also covers the _multiplied ids
                         that map onto that variant. Defaults to all variants.
+  --patched ID[,ID...]  Comma-separated exploit variant id(s) that are already patched in the
+                        service under test. For those ids, test_exploit_per_exploit_id and
+                        test_exploit_twice invert their assertion and expect the exploit to fail
+                        to recover the flag, instead of failing the run when it does. Use this to
+                        confirm a fix actually closes that exploit variant.
 
 Example Usage:
 
