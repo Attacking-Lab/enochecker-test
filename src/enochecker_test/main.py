@@ -2,11 +2,12 @@ import argparse
 import logging
 import os
 import sys
-from typing import Optional
 
 import httpx
 import pytest
 from enochecker_core import CheckerInfoMessage
+
+logger = logging.getLogger(__name__)
 
 # Stress tests flood the checker with hundreds of concurrent tasks, and utf8
 # flags exercise an encoding most services never see, so both are opt-in:
@@ -15,31 +16,35 @@ from enochecker_core import CheckerInfoMessage
 DEFAULT_MARK_EXPR = "not stress and not utf8"
 
 
+class EnocheckerTestError(Exception):
+    """A checker response or CLI argument that the test harness cannot proceed with."""
+
+
 def run_tests(
     host: str,
     port: int,
     service_address: str,
     mark_expr: str,
     multiplier: int,
-    seed: Optional[str] = None,
-    exploit_timeout: Optional[int] = None,
-    variant: Optional[int] = None,
-    name_expr: Optional[str] = None,
-    patched: Optional[str] = None,
+    seed: str | None = None,
+    exploit_timeout: int | None = None,
+    variant: int | None = None,
+    name_expr: str | None = None,
+    patched: str | None = None,
 ):
     transport = httpx.HTTPTransport(retries=10)
     with httpx.Client(transport=transport) as client:
         r = client.get(f"http://{host}:{port}/service")
     if r.status_code != 200:
-        raise Exception("Failed to get /service from checker")
+        raise EnocheckerTestError("Failed to get /service from checker")
     try:
         info = CheckerInfoMessage.model_validate_json(r.text)
     except ValueError as e:
-        raise Exception(
+        raise EnocheckerTestError(
             "Failed to parse /service from checker. Note that exploitVariants is now "
             "the list of flag variants targeted by each exploit, not their count."
         ) from e
-    logging.info(
+    logger.info(
         "Testing service %s, flagVariants: %d, noiseVariants: %d, havocVariants: %d, exploitVariants: %s, testVariants: %d",
         info.service_name,
         info.flag_variants,
@@ -59,7 +64,7 @@ def run_tests(
         info.test_variants,
     )
     if variant is not None and not 0 <= variant < max_variants:
-        raise Exception(
+        raise EnocheckerTestError(
             f"Invalid variant {variant}, the checker declares at most "
             f"{max_variants} variants for any of its methods"
         )
@@ -68,13 +73,13 @@ def run_tests(
         try:
             patched_ids = [int(p) for p in patched.split(",") if p]
         except ValueError as e:
-            raise Exception(
+            raise EnocheckerTestError(
                 f"Invalid --patched value {patched!r}, expected comma-separated "
                 "exploit ids"
             ) from e
         invalid = [p for p in patched_ids if not 0 <= p < len(info.exploit_variants)]
         if invalid:
-            raise Exception(
+            raise EnocheckerTestError(
                 f"Invalid --patched exploit id(s) {invalid}, the checker declares "
                 f"{len(info.exploit_variants)} exploit variant(s)"
             )
@@ -271,13 +276,11 @@ the exclusions out again to keep them:
             args.checker_address = network.attrs["IPAM"]["Config"][0]["Gateway"]
 
     if not args.checker_port:
-        parser.print_usage()
-        raise Exception(
+        parser.error(
             "Missing enochecker port, please set the ENOCHECKER_CHECKER_PORT environment variable"
         )
     if not args.service_address and not args.service_network:
-        parser.print_usage()
-        raise Exception(
+        parser.error(
             "Missing service address, please set the ENOCHECKER_SERVICE_ADDRESS environment variable"
         )
 

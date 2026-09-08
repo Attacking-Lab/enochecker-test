@@ -3,7 +3,6 @@ import base64
 import hashlib
 import secrets
 from random import Random
-from typing import Optional
 
 import httpx
 import jsons
@@ -36,7 +35,7 @@ class TaskId(int):
     # working untouched while letting _create_request_message read .seed off it.
     seed: str
 
-    def __new__(cls, value: int, seed: str) -> "TaskId":
+    def __new__(cls, value: int, seed: str) -> "TaskId":  # noqa: PYI034 (typing.Self needs 3.11, project floors at 3.10)
         task_id = super().__new__(cls, value)
         task_id.seed = seed
         return task_id
@@ -96,7 +95,7 @@ def exploit_timeout(request) -> int:
 
 
 def _variant_ids(
-    count: int, multiplier: int, variant: Optional[int], multiplied: bool
+    count: int, multiplier: int, variant: int | None, multiplied: bool
 ) -> list[int]:
     """The variant ids a checker method is parametrized over.
 
@@ -119,7 +118,7 @@ def pytest_generate_tests(metafunc):
     )
     test_variants: int = metafunc.config.getoption("--test-variants")
     multiplier: int = metafunc.config.getoption("--multiplier")
-    variant: Optional[int] = metafunc.config.getoption("--variant")
+    variant: int | None = metafunc.config.getoption("--variant")
 
     def ids(count: int, multiplied: bool = False) -> list[int]:
         return _variant_ids(count, multiplier, variant, multiplied)
@@ -204,12 +203,12 @@ def _create_request_message(
     round_id: int,
     variant_id: int,
     service_address: str,
-    flag: Optional[str] = None,
-    unique_variant_index: Optional[int] = None,
-    flag_regex: Optional[str] = None,
-    flag_hash: Optional[str] = None,
-    attack_info: Optional[str] = None,
-    timeout: Optional[int] = None,
+    flag: str | None = None,
+    unique_variant_index: int | None = None,
+    flag_regex: str | None = None,
+    flag_hash: str | None = None,
+    attack_info: str | None = None,
+    timeout: int | None = None,
 ) -> CheckerTaskMessage:
     if unique_variant_index is None:
         unique_variant_index = variant_id
@@ -249,7 +248,7 @@ async def _execute_request(
     request_message: CheckerTaskMessage,
     checker_url: str,
     expected_result: CheckerTaskResult,
-    client: Optional[httpx.AsyncClient],
+    client: httpx.AsyncClient | None,
 ) -> CheckerResultMessage:
     # The checker holds the connection open for the full task, so the HTTP
     # client has to wait at least as long as the timeout given to the checker.
@@ -261,8 +260,8 @@ async def _execute_request(
             timeout=http_timeout,
         )
     else:
-        async with httpx.AsyncClient() as client:
-            r = await client.post(
+        async with httpx.AsyncClient() as owned_client:
+            r = await owned_client.post(
                 f"{checker_url}",
                 json=request_message.model_dump(),
                 timeout=http_timeout,
@@ -287,7 +286,7 @@ async def _test_putflag(
     unique_variant_index=None,
     expected_result=CheckerTaskResult.OK,
     client=None,
-) -> Optional[str]:
+) -> str | None:
     if unique_variant_index is None:
         unique_variant_index = flag_id
     request_message = _create_request_message(
@@ -412,7 +411,7 @@ async def _test_exploit(
     expected_result=CheckerTaskResult.OK,
     client=None,
     timeout=None,
-) -> Optional[str]:
+) -> str | None:
     if unique_variant_index is None:
         unique_variant_index = exploit_id
     request_message = _create_request_message(
