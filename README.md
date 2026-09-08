@@ -53,7 +53,7 @@ Pass it back with `-s`/`--seed` to repeat the task ids a run used:
 $ enochecker_test --seed a85def42c911d737 ...
 ```
 
-A test's task ids are derived from the seed and the test's own name, so they don't depend on which other tests were selected — replaying a single failing test under the run's seed gives it the same task ids it had in the full run. Checkers that seed their own randomness from `task_id` (enochecker3 injects `Random(task.task_id)`) therefore replay the same random inputs. Flags are not derived from the seed and differ on every run.
+A test's task ids are derived from the seed and the test's own name, so they don't depend on which other tests were selected — replaying a single failing test under the run's seed gives it the same task ids it had in the full run. Each task also carries a `seed` field: opaque per-task entropy derived from the run seed and distinct from `task_id`. enochecker3 seeds its per-task `Random` from `task.seed`, so replaying under the run's seed reproduces the same random inputs. Flags are not derived from the seed and differ on every run.
 
 ```
 usage: enochecker_test [-h] [-a CHECKER_ADDRESS] [-n CHECKER_NETWORK] [-p {1..65535}]
