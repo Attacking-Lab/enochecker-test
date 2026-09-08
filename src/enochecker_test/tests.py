@@ -1041,6 +1041,13 @@ async def _do_exploit_run(
             exploit_id,
             service_address,
             checker_url,
+            # A patched service no longer yields the flag, so enochecker3
+            # finds none and reports MUMBLE rather than OK; expecting OK would
+            # fail on the result before the flag is ever compared. An exploit
+            # that still returns OK here means the patch did not close it.
+            expected_result=(
+                CheckerTaskResult.MUMBLE if patched else CheckerTaskResult.OK
+            ),
             timeout=exploit_timeout,
         )
         if patched:
