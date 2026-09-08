@@ -29,12 +29,25 @@ CHAIN_ID_PREFIX = secrets.token_hex(20)
 OFFLINE_ADDRESS = "offline.invalid"
 
 
+class TaskId(int):
+    # A task id that also carries the opaque per-task seed enochecker-core's
+    # CheckerTaskMessage.seed expects. Subclassing int keeps the ~50 call sites
+    # that treat task ids as plain numbers (chain ids, logging, arithmetic)
+    # working untouched while letting _create_request_message read .seed off it.
+    seed: str
+
+    def __new__(cls, value: int, seed: str) -> "TaskId":
+        task_id = super().__new__(cls, value)
+        task_id.seed = seed
+        return task_id
+
+
 class TaskIdFactory:
     def __init__(self, seed):
         self.rand = Random(seed)
 
-    def __next__(self):
-        return self.rand.randint(0, 1 << 48)
+    def __next__(self) -> TaskId:
+        return TaskId(self.rand.randint(0, 1 << 48), self.rand.randbytes(16).hex())
 
 
 @pytest.fixture
@@ -218,6 +231,7 @@ def _create_request_message(
         flag_regex=flag_regex,
         flag_hash=flag_hash,
         attack_info=attack_info,
+        seed=getattr(task_id, "seed", None),
     )
 
 
