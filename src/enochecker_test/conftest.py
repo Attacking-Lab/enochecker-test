@@ -39,6 +39,7 @@ def pytest_addoption(parser):
     parser.addoption("--noise-variants", action="store", type=int)
     parser.addoption("--havoc-variants", action="store", type=int)
     parser.addoption("--exploit-variants", action="store", type=str)
+    parser.addoption("--patched", action="store", type=str, default="")
     parser.addoption("--test-variants", action="store", type=int)
     parser.addoption("--exploit-timeout", action="store", type=int, default=None)
     parser.addoption("--multiplier", action="store", type=int)

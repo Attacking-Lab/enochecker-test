@@ -25,6 +25,7 @@ def run_tests(
     exploit_timeout: Optional[int] = None,
     variant: Optional[int] = None,
     name_expr: Optional[str] = None,
+    patched: Optional[str] = None,
 ):
     transport = httpx.HTTPTransport(retries=10)
     with httpx.Client(transport=transport) as client:
@@ -63,6 +64,21 @@ def run_tests(
             f"{max_variants} variants for any of its methods"
         )
 
+    if patched:
+        try:
+            patched_ids = [int(p) for p in patched.split(",") if p]
+        except ValueError as e:
+            raise Exception(
+                f"Invalid --patched value {patched!r}, expected comma-separated "
+                "exploit ids"
+            ) from e
+        invalid = [p for p in patched_ids if not 0 <= p < len(info.exploit_variants)]
+        if invalid:
+            raise Exception(
+                f"Invalid --patched exploit id(s) {invalid}, the checker declares "
+                f"{len(info.exploit_variants)} exploit variant(s)"
+            )
+
     test_args = [
         f"--checker-address={host}",
         f"--checker-port={port}",
@@ -85,6 +101,8 @@ def run_tests(
         test_args.append(f"--exploit-timeout={exploit_timeout}")
     if variant is not None:
         test_args.append(f"--variant={variant}")
+    if patched:
+        test_args.append(f"--patched={patched}")
     test_args.append("-m")
     test_args.append(mark_expr or DEFAULT_MARK_EXPR)
     if name_expr:
@@ -212,6 +230,17 @@ the exclusions out again to keep them:
         default=None,
     )
     parser.add_argument(
+        "--patched",
+        metavar="ID[,ID...]",
+        help="Comma-separated exploit variant id(s) that are already patched in "
+        "the service under test. For those ids, test_exploit_per_exploit_id and "
+        "test_exploit_twice invert their assertion and expect the exploit to "
+        "fail to recover the flag, instead of failing the run when it does. "
+        "Use this to confirm a fix actually closes that exploit variant.",
+        type=str,
+        default=None,
+    )
+    parser.add_argument(
         "markexpr",
         metavar="MARKEXPR",
         help="Select tests by marker in the syntax expected by pytest's -m flag, "
@@ -263,4 +292,5 @@ the exclusions out again to keep them:
         args.exploit_timeout,
         args.variant,
         args.name_expr,
+        args.patched,
     )
