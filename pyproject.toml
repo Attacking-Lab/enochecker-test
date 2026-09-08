@@ -1,7 +1,7 @@
 [project]
 name = "enochecker_test"
 version = "0.16.0"
-requires-python = ">=3.13"
+requires-python = ">=3.10"
 description = "Library to help test checker scripts based on enochecker"
 authors = [
 	{ name = "Louis Burda", email = "dev@sinitax.com" },
