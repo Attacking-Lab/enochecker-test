@@ -272,7 +272,7 @@ the exclusions out again to keep them:
             args.service_address = network.attrs["IPAM"]["Config"][0]["Gateway"]
 
         if args.checker_network and not args.checker_address:
-            network = client.networks.get(args.service_network)
+            network = client.networks.get(args.checker_network)
             args.checker_address = network.attrs["IPAM"]["Config"][0]["Gateway"]
 
     if not args.checker_port:
