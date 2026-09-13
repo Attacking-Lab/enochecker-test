@@ -25,16 +25,12 @@ GROUP_DESCRIPTIONS = {
 }
 
 
-# Flag encodings every encoding-parametrized test runs under. Selecting a
-# subset is done with -m on the per-encoding markers, not by narrowing this.
-FLAG_ENCODINGS = ("ascii", "utf8")
-
-
 def pytest_addoption(parser):
     parser.addoption("--checker-address", action="store", type=str)
     parser.addoption("--checker-port", action="store", type=int)
     parser.addoption("--service-address", action="store", type=str)
     parser.addoption("--service-name", action="store", type=str)
+    parser.addoption("--flag-regex", action="store", type=str)
     parser.addoption("--flag-variants", action="store", type=int)
     parser.addoption("--noise-variants", action="store", type=int)
     parser.addoption("--havoc-variants", action="store", type=int)
@@ -56,13 +52,6 @@ def pytest_configure(config):
 
     for group, description in GROUP_DESCRIPTIONS.items():
         config.addinivalue_line("markers", f"{group}: {description}")
-
-    # Encoding is a second, orthogonal marker axis: tests parametrized over a
-    # flag encoding carry that encoding's name as a marker so -m can select it.
-    for encoding in FLAG_ENCODINGS:
-        config.addinivalue_line(
-            "markers", f"{encoding}: tests using {encoding}-encoded flags"
-        )
 
     # enable tracing if OTEL_EXPORTER_OTLP_ENDPOINT is set
     if otlp_endpoint := os.environ.get("OTEL_EXPORTER_OTLP_ENDPOINT"):

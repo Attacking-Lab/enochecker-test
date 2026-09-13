@@ -5,20 +5,24 @@ Automatically test services/checker using the enochecker API
 # Usage
 `enochecker_test` runs tests against a checker. Which tests run is selected by the positional `MARKEXPR` argument, by `-k`/`--named` and by `-v`/`--variant`.
 
-Every test is annotated with the checker method it exercises (`putflag`, `getflag`, `putnoise`, `getnoise`, `havoc`, `exploit`, `test`, plus `stress` and `misc` for the tests that don't map to a single method) via `@pytest.mark.<name>`. Tests that plant or read a flag additionally run once per flag encoding and carry that encoding's name as a marker (`ascii`, `utf8`). `MARKEXPR` selects over those markers using the boolean expression syntax pytest's own `-m` flag expects (`and`/`or`/`not`/parens); it maps straight onto `-m` under the hood:
+Every test is annotated with the checker method it exercises (`putflag`, `getflag`, `putnoise`, `getnoise`, `havoc`, `exploit`, `test`, plus `stress` and `misc` for the tests that don't map to a single method) via `@pytest.mark.<name>`. `MARKEXPR` selects over those markers using the boolean expression syntax pytest's own `-m` flag expects (`and`/`or`/`not`/parens); it maps straight onto `-m` under the hood:
 
 ```
 $ enochecker_test "putflag or getflag" ...
 $ enochecker_test "not exploit" ...
-$ enochecker_test "getflag and utf8" ...
 ```
 
-`MARKEXPR` defaults to `not stress and not utf8`: the stress tests flood the checker with hundreds of concurrent tasks, and utf8 flags exercise an encoding most services never see, so both are opt-in. Naming an expression **replaces** that default rather than narrowing it — spell the exclusions out again to keep them:
+`MARKEXPR` defaults to `not stress`: the stress tests flood the checker with hundreds of concurrent tasks, so they're opt-in. Naming an expression **replaces** that default rather than narrowing it — spell the exclusion out again to keep it:
 
 ```
 $ enochecker_test stress ...
-$ enochecker_test utf8 ...
-$ enochecker_test "putflag and not stress and not utf8" ...
+$ enochecker_test "putflag and not stress" ...
+```
+
+Dummy flags planted/read by these tests are generated to match `--flag-regex`, a regex describing the flag shape the target service's real gameserver uses. Generation supports a subset of regex syntax (literals, non-negated character classes, `\d`/`\w`/`\s`, groups, alternation, and the quantifiers `?`, `*`, `+`, `{n}`, `{n,m}`, `{n,}`); a regex outside that subset falls back to the default shape, `ENO[A-Za-z0-9+/=]{48}`. It's also sent to the checker as `flag_regex` on exploit tasks:
+
+```
+$ enochecker_test --flag-regex 'FLAG\{[a-f0-9]{32}\}' ...
 ```
 
 `-v`/`--variant ID` narrows the run to a single variant id, orthogonally to `MARKEXPR`. It applies per checker method, and also picks up the `_multiplied` ids that map onto that variant (id `i` belongs to variant `i % <method>_variants`), so it consistently exercises one flagstore end to end:
@@ -66,19 +70,18 @@ A test's task ids are derived from the seed and the test's own name, so they don
 usage: enochecker_test [-h] [-a CHECKER_ADDRESS] [-n CHECKER_NETWORK] [-p {1..65535}]
                        [-A SERVICE_ADDRESS] [-N SERVICE_NETWORK] [-m MULTIPLIER] [-s SEED]
                        [--exploit-timeout EXPLOIT_TIMEOUT] [-k EXPR] [-v ID]
-                       [--patched ID[,ID...]]
+                       [--patched ID[,ID...]] [--flag-regex REGEX]
                        [MARKEXPR]
 
 Utility for testing checkers that implement the enochecker API
 
 positional arguments:
   MARKEXPR              Select tests by marker in the syntax expected by pytest's -m flag, e.g.
-                        'putflag or getflag', 'not exploit' or 'getflag and utf8'. Markers are the
-                        group names (putflag, getflag, putnoise, getnoise, havoc, exploit, test,
-                        stress, misc) plus the flag encodings (ascii, utf8). Defaults to the
-                        ENOCHECKER_MARK_EXPR environment variable, or to 'not stress and not utf8'
-                        if that is unset; naming an expr replaces that default rather than
-                        narrowing it, so the stress and utf8 tests can be selected back in.
+                        'putflag or getflag' or 'not exploit'. Markers are the group names
+                        (putflag, getflag, putnoise, getnoise, havoc, exploit, test, stress,
+                        misc). Defaults to the ENOCHECKER_MARK_EXPR environment variable, or to
+                        'not stress' if that is unset; naming an expr replaces that default rather
+                        than narrowing it, so the stress tests can be selected back in.
 
 options:
   -h, --help            show this help message and exit
@@ -115,6 +118,13 @@ options:
                         test_exploit_twice invert their assertion and expect the exploit to fail
                         to recover the flag, instead of failing the run when it does. Use this to
                         confirm a fix actually closes that exploit variant.
+  --flag-regex REGEX    Regex describing the flag shape the target service's real gameserver uses.
+                        Dummy flags are generated to match it using a supported subset of regex
+                        syntax (literals, non-negated character classes, \d/\w/\s, groups,
+                        alternation, and the quantifiers ?, *, +, {n}, {n,m}, {n,}); a regex
+                        outside that subset falls back to the default shape. Also sent to the
+                        checker as flag_regex on exploit tasks. Defaults to ENOCHECKER_FLAG_REGEX,
+                        or to 'ENO[A-Za-z0-9+\/=]{48}' if that is unset.
 
 Example Usage:
 
@@ -127,25 +137,30 @@ service's docker container as obtained by e.g:
 
 By default all tests run. Three independent filters narrow that down, and a
 test must pass all of the ones given. markexpr (the positional argument,
-pytest's -m) matches @pytest.mark.<name> markers -- group names (putflag,
-getflag, putnoise, getnoise, havoc, exploit, test, stress, misc) and flag
-encodings (ascii, utf8) -- as a boolean expression (and/or/not/parens).
---named (pytest's -k) matches individual tests by name. --variant restricts
-the run to a single variant id:
+pytest's -m) matches @pytest.mark.<name> markers -- the group names (putflag,
+getflag, putnoise, getnoise, havoc, exploit, test, stress, misc) -- as a
+boolean expression (and/or/not/parens). --named (pytest's -k) matches
+individual tests by name. --variant restricts the run to a single variant id:
 
     $ enochecker_test "putflag or getflag" ...
-    $ enochecker_test "getflag and not utf8" ...
     $ enochecker_test --variant 0 "not exploit" ...
     $ enochecker_test --named test_getflag_twice ...
     $ enochecker_test --named "not offline" --variant 0 putflag ...
 
-markexpr defaults to ENOCHECKER_MARK_EXPR, or to "not stress and not utf8"
-when that is unset: the stress tests flood the checker with hundreds of
-concurrent tasks, and utf8 flags exercise an encoding most services never see.
+markexpr defaults to ENOCHECKER_MARK_EXPR, or to "not stress" when that is
+unset: stress tests flood the checker with hundreds of concurrent tasks.
 Naming any markexpr replaces that default rather than narrowing it, so spell
-the exclusions out again to keep them:
+the exclusion out again to keep it:
 
     $ enochecker_test stress ...
-    $ enochecker_test utf8 ...
-    $ enochecker_test "putflag and not stress and not utf8" ...
+    $ enochecker_test "putflag and not stress" ...
+
+Dummy flags are generated to match --flag-regex (a regex subset: literals,
+non-negated character classes, \d/\w/\s, groups, alternation, and the
+quantifiers ?, *, +, {n}, {n,m}, {n,}). It defaults to the shape most
+checkers use, ENO[A-Za-z0-9+/=]{48}; a checker using some other flag shape
+should be tested with that shape instead. A regex outside the supported
+subset (e.g. using "." or a negated class) falls back to that default shape:
+
+    $ enochecker_test --flag-regex 'FLAG\{[a-f0-9]{32}\}' ...
 ```
