@@ -13,6 +13,10 @@ mid-pattern anchors, ...), so the caller can fall back to a default shape.
 
 import secrets
 
+# The flag shape most enochecker checkers use; also the fallback shape when a
+# given regex falls outside the subset this module supports.
+DEFAULT_FLAG_REGEX = r"ENO[A-Za-z0-9+\/=]{48}"
+
 # Caps the length contributed by an unbounded quantifier (`*`, `+`, `{n,}`)
 # so a pathological pattern can't generate an absurdly long flag.
 MAX_UNBOUNDED_REPEAT = 32
@@ -48,9 +52,7 @@ class _Parser:
         # Anchors only make sense at the very start/end of the whole pattern
         # (not per-group), so strip them from the raw string up front rather
         # than treating '^'/'$' as atoms the recursive descent has to special-case.
-        s = self.s
-        if s.startswith("^"):
-            s = s[1:]
+        s = self.s.removeprefix("^")
         if s.endswith("$") and not s.endswith("\\$"):
             s = s[:-1]
         self.s, self.i, self.n = s, 0, len(s)
@@ -69,8 +71,10 @@ class _Parser:
 
     def _concat(self):
         parts = []
-        while self.peek() is not None and self.peek() not in "|)":
+        c = self.peek()
+        while c is not None and c not in "|)":
             parts.append(self._quantified())
+            c = self.peek()
         return parts[0] if len(parts) == 1 else ("concat", parts)
 
     def _quantified(self):

@@ -1,5 +1,4 @@
 import asyncio
-import base64
 import hashlib
 import secrets
 from random import Random
@@ -15,11 +14,13 @@ from enochecker_core import (
     CheckerTaskResult,
 )
 
-from enochecker_test.conftest import FLAG_ENCODINGS
+from enochecker_test.flagregex import (
+    DEFAULT_FLAG_REGEX,
+    UnsupportedRegexError,
+    generate_from_regex,
+)
 
 global_round_id = 0
-FLAG_REGEX_ASCII = r"ENO[A-Za-z0-9+\/=]{48}"
-FLAG_REGEX_UTF8 = r"🥺[A-Za-z0-9+\/=]{48}🥺🥺"
 REQUEST_TIMEOUT = 10
 TEST_REQUEST_TIMEOUT = 3600
 CHAIN_ID_PREFIX = secrets.token_hex(20)
@@ -152,26 +153,20 @@ def pytest_generate_tests(metafunc):
     if "test_id" in metafunc.fixturenames:
         metafunc.parametrize("test_id", ids(test_variants))
 
-    if "encoding" in metafunc.fixturenames:
-        metafunc.parametrize(
-            "encoding",
-            [
-                pytest.param(encoding, marks=getattr(pytest.mark, encoding))
-                for encoding in FLAG_ENCODINGS
-            ],
-        )
-
     if "stress_multiplier" in metafunc.fixturenames:
         metafunc.parametrize("stress_multiplier", [32, 128, 512])
 
 
-def generate_dummyflag(encoding: str) -> str:
-    if encoding == "utf8":
-        flag = "🥺" + base64.b64encode(secrets.token_bytes(36)).decode() + "🥺🥺"
-    else:
-        flag = "ENO" + base64.b64encode(secrets.token_bytes(36)).decode()
-    assert len(flag) == 51
-    return flag
+def generate_dummyflag(flag_regex: str) -> str:
+    try:
+        return generate_from_regex(flag_regex)
+    except UnsupportedRegexError:
+        return generate_from_regex(DEFAULT_FLAG_REGEX)
+
+
+@pytest.fixture
+def flag_regex(request) -> str:
+    return request.config.getoption("--flag-regex") or DEFAULT_FLAG_REGEX
 
 
 @pytest.fixture
@@ -189,12 +184,6 @@ def task_ids(request):
     # checker the task ids -- and hence the checker-side RNG -- it saw before.
     seed: str = request.config.getoption("--seed")
     return TaskIdFactory(f"{seed}:{request.node.name}")
-
-
-def _flag_regex_for_encoding(encoding: str) -> str:
-    if encoding == "utf8":
-        return FLAG_REGEX_UTF8
-    return FLAG_REGEX_ASCII
 
 
 def _create_request_message(
@@ -458,9 +447,9 @@ async def _test_test(
 
 @pytest.mark.putflag
 async def test_putflag(
-    encoding, task_ids, round_id, flag_id, service_address, checker_url
+    flag_regex, task_ids, round_id, flag_id, service_address, checker_url
 ):
-    flag = generate_dummyflag(encoding)
+    flag = generate_dummyflag(flag_regex)
     await _test_putflag(
         flag,
         next(task_ids),
@@ -473,7 +462,7 @@ async def test_putflag(
 
 @pytest.mark.putflag
 async def test_putflag_multiplied(
-    encoding,
+    flag_regex,
     task_ids,
     round_id,
     flag_id_multiplied,
@@ -481,7 +470,7 @@ async def test_putflag_multiplied(
     service_address,
     checker_url: str,
 ):
-    flag = generate_dummyflag(encoding)
+    flag = generate_dummyflag(flag_regex)
     await _test_putflag(
         flag,
         next(task_ids),
@@ -495,14 +484,14 @@ async def test_putflag_multiplied(
 
 @pytest.mark.putflag
 async def test_putflag_invalid_variant(
-    encoding,
+    flag_regex,
     task_ids,
     round_id,
     flag_variants,
     service_address,
     checker_url: str,
 ):
-    flag = generate_dummyflag(encoding)
+    flag = generate_dummyflag(flag_regex)
     await _test_putflag(
         flag,
         next(task_ids),
@@ -515,8 +504,8 @@ async def test_putflag_invalid_variant(
 
 
 @pytest.mark.putflag
-async def test_putflag_offline(encoding, task_ids, round_id, flag_id, checker_url):
-    flag = generate_dummyflag(encoding)
+async def test_putflag_offline(flag_regex, task_ids, round_id, flag_id, checker_url):
+    flag = generate_dummyflag(flag_regex)
     await _test_putflag(
         flag,
         next(task_ids),
@@ -530,9 +519,9 @@ async def test_putflag_offline(encoding, task_ids, round_id, flag_id, checker_ur
 
 @pytest.mark.getflag
 async def test_getflag(
-    encoding, task_ids, round_id, flag_id, service_address, checker_url
+    flag_regex, task_ids, round_id, flag_id, service_address, checker_url
 ):
-    flag = generate_dummyflag(encoding)
+    flag = generate_dummyflag(flag_regex)
     await _test_putflag(
         flag,
         next(task_ids),
@@ -553,7 +542,7 @@ async def test_getflag(
 
 @pytest.mark.getflag
 async def test_getflag_after_second_putflag_with_same_variant_id(
-    encoding,
+    flag_regex,
     task_ids,
     round_id,
     flag_id,
@@ -561,7 +550,7 @@ async def test_getflag_after_second_putflag_with_same_variant_id(
     service_address,
     checker_url,
 ):
-    flag = generate_dummyflag(encoding)
+    flag = generate_dummyflag(flag_regex)
     await _test_putflag(
         flag,
         next(task_ids),
@@ -571,7 +560,7 @@ async def test_getflag_after_second_putflag_with_same_variant_id(
         checker_url,
     )
     await _test_putflag(
-        generate_dummyflag(encoding),
+        generate_dummyflag(flag_regex),
         next(task_ids),
         round_id,
         flag_id,
@@ -591,9 +580,9 @@ async def test_getflag_after_second_putflag_with_same_variant_id(
 
 @pytest.mark.getflag
 async def test_getflag_twice(
-    encoding, task_ids, round_id, flag_id, service_address, checker_url
+    flag_regex, task_ids, round_id, flag_id, service_address, checker_url
 ):
-    flag = generate_dummyflag(encoding)
+    flag = generate_dummyflag(flag_regex)
     await _test_putflag(
         flag,
         next(task_ids),
@@ -622,9 +611,9 @@ async def test_getflag_twice(
 
 @pytest.mark.getflag
 async def test_getflag_wrong_flag(
-    encoding, task_ids, round_id, flag_id, service_address, checker_url
+    flag_regex, task_ids, round_id, flag_id, service_address, checker_url
 ):
-    flag = generate_dummyflag(encoding)
+    flag = generate_dummyflag(flag_regex)
     await _test_putflag(
         flag,
         next(task_ids),
@@ -633,7 +622,7 @@ async def test_getflag_wrong_flag(
         service_address,
         checker_url,
     )
-    wrong_flag = generate_dummyflag(encoding)
+    wrong_flag = generate_dummyflag(flag_regex)
     await _test_getflag(
         wrong_flag,
         next(task_ids),
@@ -647,9 +636,9 @@ async def test_getflag_wrong_flag(
 
 @pytest.mark.getflag
 async def test_getflag_without_putflag(
-    encoding, task_ids, round_id, flag_id, service_address, checker_url
+    flag_regex, task_ids, round_id, flag_id, service_address, checker_url
 ):
-    flag = generate_dummyflag(encoding)
+    flag = generate_dummyflag(flag_regex)
     await _test_getflag(
         flag,
         next(task_ids),
@@ -663,7 +652,7 @@ async def test_getflag_without_putflag(
 
 @pytest.mark.getflag
 async def test_getflag_multiplied(
-    encoding,
+    flag_regex,
     task_ids,
     round_id,
     flag_id_multiplied,
@@ -671,7 +660,7 @@ async def test_getflag_multiplied(
     service_address,
     checker_url,
 ):
-    flag = generate_dummyflag(encoding)
+    flag = generate_dummyflag(flag_regex)
     await _test_putflag(
         flag,
         next(task_ids),
@@ -694,14 +683,14 @@ async def test_getflag_multiplied(
 
 @pytest.mark.getflag
 async def test_getflag_invalid_variant(
-    encoding,
+    flag_regex,
     task_ids,
     round_id,
     flag_variants,
     service_address,
     checker_url,
 ):
-    flag = generate_dummyflag(encoding)
+    flag = generate_dummyflag(flag_regex)
     await _test_getflag(
         flag,
         next(task_ids),
@@ -715,9 +704,9 @@ async def test_getflag_invalid_variant(
 
 @pytest.mark.getflag
 async def test_getflag_offline(
-    encoding, task_ids, round_id, flag_id, service_address, checker_url
+    flag_regex, task_ids, round_id, flag_id, service_address, checker_url
 ):
-    flag = generate_dummyflag(encoding)
+    flag = generate_dummyflag(flag_regex)
     await _test_putflag(
         flag,
         next(task_ids),
@@ -1008,7 +997,7 @@ async def test_havoc_offline(task_ids, round_id, havoc_id, checker_url):
 
 
 async def _do_exploit_run(
-    encoding,
+    flag_regex,
     task_ids: TaskIdFactory,
     round_id,
     exploit_id,
@@ -1019,7 +1008,7 @@ async def _do_exploit_run(
     tries: int = 1,
     patched: bool = False,
 ):
-    flag = generate_dummyflag(encoding)
+    flag = generate_dummyflag(flag_regex)
     flag_hash = hashlib.sha256(flag.encode()).hexdigest()
 
     attack_info = await _test_putflag(
@@ -1032,7 +1021,7 @@ async def _do_exploit_run(
     )
     for _ in range(tries):
         found_flag = await _test_exploit(
-            _flag_regex_for_encoding(encoding),
+            flag_regex,
             flag_hash,
             attack_info,
             next(task_ids),
@@ -1062,7 +1051,7 @@ async def _do_exploit_run(
 
 @pytest.mark.exploit
 async def test_exploit_per_exploit_id(
-    encoding,
+    flag_regex,
     task_ids,
     round_id,
     exploit_id,
@@ -1073,7 +1062,7 @@ async def test_exploit_per_exploit_id(
     patched_exploit_ids,
 ):
     await _do_exploit_run(
-        encoding,
+        flag_regex,
         task_ids,
         round_id,
         exploit_id,
@@ -1087,7 +1076,7 @@ async def test_exploit_per_exploit_id(
 
 @pytest.mark.exploit
 async def test_exploit_twice(
-    encoding,
+    flag_regex,
     task_ids,
     round_id,
     exploit_id,
@@ -1098,7 +1087,7 @@ async def test_exploit_twice(
     patched_exploit_ids,
 ):
     await _do_exploit_run(
-        encoding,
+        flag_regex,
         task_ids,
         round_id,
         exploit_id,
@@ -1122,18 +1111,18 @@ async def test_all_flagstores_exploitable(
 
 @pytest.mark.exploit
 async def test_exploit_invalid_variant(
-    encoding,
+    flag_regex,
     task_ids,
     round_id,
     exploit_variants,
     service_address,
     checker_url: str,
 ):
-    flag = generate_dummyflag(encoding)
+    flag = generate_dummyflag(flag_regex)
     flag_hash = hashlib.sha256(flag.encode()).hexdigest()
 
     await _test_exploit(
-        _flag_regex_for_encoding(encoding),
+        flag_regex,
         flag_hash,
         None,
         next(task_ids),
@@ -1176,7 +1165,7 @@ async def test_test(task_ids, round_id, test_id, service_address, checker_url):
 
 @pytest.mark.stress
 async def test_stress(
-    encoding,
+    flag_regex,
     task_ids,
     round_id,
     flag_variants,
@@ -1192,7 +1181,7 @@ async def test_stress(
     async with httpx.AsyncClient(transport=transport) as client:
 
         async def flag_fn(i, flag_id):
-            flag = generate_dummyflag(encoding)
+            flag = generate_dummyflag(flag_regex)
             await _test_putflag(
                 flag,
                 next(task_ids),
