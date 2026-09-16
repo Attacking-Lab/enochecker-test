@@ -219,8 +219,7 @@ subset (e.g. using "." or a negated class) falls back to that default shape:
     parser.add_argument(
         "--exploit-timeout",
         help="Timeout in seconds given to the checker for exploit tasks specifically "
-        "(defaults to the same timeout used for all other checker methods, "
-        "or ENOCHECKER_EXPLOIT_TIMEOUT if set)",
+        "(defaults to 60 seconds, or ENOCHECKER_EXPLOIT_TIMEOUT if set)",
         type=int,
         default=os.environ.get("ENOCHECKER_EXPLOIT_TIMEOUT"),
     )
