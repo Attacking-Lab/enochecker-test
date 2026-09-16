@@ -105,8 +105,7 @@ options:
                         passed back in to repeat that run's task ids
   --exploit-timeout EXPLOIT_TIMEOUT
                         Timeout in seconds given to the checker for exploit tasks specifically
-                        (defaults to the same timeout used for all other checker methods, or
-                        ENOCHECKER_EXPLOIT_TIMEOUT if set)
+                        (defaults to 60 seconds, or ENOCHECKER_EXPLOIT_TIMEOUT if set)
   -k, --named EXPR      Select individual tests by name in the syntax expected by pytest's -k
                         flag, e.g. 'test_getflag_twice' or 'not offline'. Composes with MARKEXPR
                         and --variant: a test must match every filter that is given.

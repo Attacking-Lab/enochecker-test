@@ -23,6 +23,7 @@ from enochecker_test.flagregex import (
 global_round_id = 0
 REQUEST_TIMEOUT = 10
 TEST_REQUEST_TIMEOUT = 3600
+EXPLOIT_TIMEOUT_DEFAULT = 60
 CHAIN_ID_PREFIX = secrets.token_hex(20)
 # ".invalid" is reserved by RFC 2606 to never resolve, so this reliably
 # simulates an unreachable service without depending on network topology.
@@ -92,7 +93,7 @@ def patched_exploit_ids(request) -> set[int]:
 
 @pytest.fixture
 def exploit_timeout(request) -> int:
-    return request.config.getoption("--exploit-timeout") or REQUEST_TIMEOUT
+    return request.config.getoption("--exploit-timeout") or EXPLOIT_TIMEOUT_DEFAULT
 
 
 def _variant_ids(
