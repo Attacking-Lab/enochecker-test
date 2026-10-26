@@ -163,3 +163,7 @@ subset (e.g. using "." or a negated class) falls back to that default shape:
 
     $ enochecker_test --flag-regex 'FLAG\{[a-f0-9]{32}\}' ...
 ```
+
+# License
+
+MIT. See [LICENSE](LICENSE).
