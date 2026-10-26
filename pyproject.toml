@@ -68,8 +68,8 @@ include = ["*"]
 exclude = []
 
 [project.urls]
-homepage = "https://github.com/enowars/enochecker_test"
-repository = "https://github.com/enowars/enochecker_test"
+homepage = "https://github.com/attacking-lab/enochecker-test"
+repository = "https://github.com/attacking-lab/enochecker-test"
 
 [project.scripts]
 enochecker_test = "enochecker_test.main:main"
