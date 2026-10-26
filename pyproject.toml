@@ -15,7 +15,7 @@ dependencies = [
 	"pytest>=8.2.2",
 	"pytest-asyncio>=1.3.0",
 	"httpx>=0.28.1",
-	"enochecker-core~=0.18.0",
+	"enochecker-core~=0.22.0",
 	"opentelemetry-api>=1.39.1",
 	"opentelemetry-sdk>=1.39.1",
 	"opentelemetry-exporter-otlp>=1.39.1",
@@ -55,8 +55,8 @@ dev = [
 ]
 
 [tool.uv.sources]
-enochecker-core = { git = "https://git.atklab.cloud/atklab/enochecker-core", rev = "v0.21.1" }
-enochecker3 = { git = "https://git.atklab.cloud/atklab/enochecker3", rev = "v0.21.1" }
+enochecker-core = { git = "https://github.com/attacking-lab/enochecker-core", rev = "v0.22.0" }
+enochecker3 = { git = "https://github.com/attacking-lab/enochecker3", rev = "v0.22.3-public" }
 
 [build-system]
 requires = ["setuptools"]

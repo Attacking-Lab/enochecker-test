@@ -1,5 +1,5 @@
 version = 1
-revision = 3
+revision = 5
 requires-python = ">=3.10"
 resolution-markers = [
     "python_full_version >= '3.15'",
@@ -468,8 +468,8 @@ wheels = [
 
 [[package]]
 name = "enochecker-core"
-version = "0.21.1"
-source = { git = "https://git.atklab.cloud/atklab/enochecker-core?rev=v0.21.1#e69470e7ea81fda9e41a4158b4a9e4908b716710" }
+version = "0.22.0"
+source = { git = "https://github.com/attacking-lab/enochecker-core?rev=v0.22.0#4770a14c4b89ab11d916cf3513ef1ca72395806f" }
 dependencies = [
     { name = "pydantic" },
 ]
@@ -521,7 +521,7 @@ typing = [
 [package.metadata]
 requires-dist = [
     { name = "docker", specifier = ">=7.1.0" },
-    { name = "enochecker-core", git = "https://git.atklab.cloud/atklab/enochecker-core?rev=v0.21.1" },
+    { name = "enochecker-core", git = "https://github.com/attacking-lab/enochecker-core?rev=v0.22.0" },
     { name = "httpx", specifier = ">=0.28.1" },
     { name = "jsons", specifier = "~=1.6.3" },
     { name = "opentelemetry-api", specifier = ">=1.39.1" },
@@ -535,7 +535,7 @@ requires-dist = [
 [package.metadata.requires-dev]
 dev = [
     { name = "coverage", specifier = ">=7.10.4" },
-    { name = "enochecker3", git = "https://git.atklab.cloud/atklab/enochecker3?rev=v0.21.1" },
+    { name = "enochecker3", git = "https://github.com/attacking-lab/enochecker3?rev=v0.22.3-public" },
     { name = "mypy", specifier = ">=1.17.1" },
     { name = "pytest", specifier = ">=8.2.2" },
     { name = "pytest-asyncio", specifier = ">=0.25.3" },
@@ -546,7 +546,7 @@ format = [{ name = "ruff", specifier = ">=0.12.9" }]
 lint = [{ name = "ruff", specifier = ">=0.12.9" }]
 test = [
     { name = "coverage", specifier = ">=7.10.4" },
-    { name = "enochecker3", git = "https://git.atklab.cloud/atklab/enochecker3?rev=v0.21.1" },
+    { name = "enochecker3", git = "https://github.com/attacking-lab/enochecker3?rev=v0.22.3-public" },
     { name = "pytest", specifier = ">=8.2.2" },
     { name = "pytest-asyncio", specifier = ">=0.25.3" },
 ]
@@ -557,8 +557,8 @@ typing = [
 
 [[package]]
 name = "enochecker3"
-version = "0.21.1"
-source = { git = "https://git.atklab.cloud/atklab/enochecker3?rev=v0.21.1#9639f75aa0f40ba0f2975f13fbc2aefb7f4650f6" }
+version = "0.22.3"
+source = { git = "https://github.com/attacking-lab/enochecker3?rev=v0.22.3-public#efbec89d250867969f21bda7f5ebc0351209c994" }
 dependencies = [
     { name = "enochecker-core" },
     { name = "fastapi" },
@@ -579,7 +579,7 @@ name = "exceptiongroup"
 version = "1.3.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "typing-extensions", marker = "python_full_version < '3.13'" },
+    { name = "typing-extensions" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/50/79/66800aadf48771f6b62f7eb014e352e5d06856655206165d775e675a02c9/exceptiongroup-1.3.1.tar.gz", hash = "sha256:8b412432c6055b0b7d14c310000ae93352ed6754f70fa8f7c34141f91c4e3219", size = 30371, upload-time = "2025-11-21T23:01:54.787Z" }
 wheels = [

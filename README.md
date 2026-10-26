@@ -2,7 +2,7 @@
 
 Automatically test services/checker using the enochecker API
 
-# Usage
+# Quickstart
 `enochecker_test` runs tests against a checker. Which tests run is selected by the positional `MARKEXPR` argument, by `-k`/`--named` and by `-v`/`--variant`.
 
 Every test is annotated with the checker method it exercises (`putflag`, `getflag`, `putnoise`, `getnoise`, `havoc`, `exploit`, `test`, plus `stress` and `misc` for the tests that don't map to a single method) via `@pytest.mark.<name>`. `MARKEXPR` selects over those markers using the boolean expression syntax pytest's own `-m` flag expects (`and`/`or`/`not`/parens); it maps straight onto `-m` under the hood:
@@ -12,7 +12,7 @@ $ enochecker_test "putflag or getflag" ...
 $ enochecker_test "not exploit" ...
 ```
 
-`MARKEXPR` defaults to `not stress`: the stress tests flood the checker with hundreds of concurrent tasks, so they're opt-in. Naming an expression **replaces** that default rather than narrowing it — spell the exclusion out again to keep it:
+`MARKEXPR` defaults to `not stress`: the stress tests flood the checker with hundreds of concurrent tasks, so they're opt-in. Naming an expression **replaces** that default rather than narrowing it, so spell the exclusion out again to keep it:
 
 ```
 $ enochecker_test stress ...
@@ -46,7 +46,7 @@ $ enochecker_test --patched 0 exploit ...
 $ enochecker_test --patched 0,2 exploit ...
 ```
 
-The filters are independent and compose — a test runs only if it matches every one that was given:
+The filters are independent and compose: a test runs only if it matches every one that was given:
 
 ```
 $ enochecker_test --named "not offline" --variant 0 "putflag or getflag" ...
@@ -64,7 +64,9 @@ Pass it back with `-s`/`--seed` to repeat the task ids a run used:
 $ enochecker_test --seed a85def42c911d737 ...
 ```
 
-A test's task ids are derived from the seed and the test's own name, so they don't depend on which other tests were selected — replaying a single failing test under the run's seed gives it the same task ids it had in the full run. Each task also carries a `seed` field: opaque per-task entropy derived from the run seed and distinct from `task_id`. enochecker3 seeds its per-task `Random` from `task.seed`, so replaying under the run's seed reproduces the same random inputs. Flags are not derived from the seed and differ on every run.
+A test's task ids are derived from the seed and the test's own name, so they don't depend on which other tests were selected. Replaying a single failing test under the run's seed gives it the same task ids it had in the full run. Each task also carries a `seed` field: opaque per-task entropy derived from the run seed and distinct from `task_id`. enochecker3 seeds its per-task `Random` from `task.seed`, so replaying under the run's seed reproduces the same random inputs. Flags are not derived from the seed and differ on every run.
+
+# Usage
 
 ```
 usage: enochecker_test [-h] [-a CHECKER_ADDRESS] [-n CHECKER_NETWORK] [-p {1..65535}]
